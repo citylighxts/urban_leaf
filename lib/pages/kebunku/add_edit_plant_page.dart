@@ -239,17 +239,20 @@ class _EmojiSelector extends StatelessWidget {
   final void Function(String emoji, String type) onSelect;
 
   static const List<(String, String)> _types = [
-    ('🥬', 'Selada'),
+    ('🍎', 'Apel'),
+    ('🫐', 'Blueberry'),
+    ('🍒', 'Ceri'),
+    ('🌽', 'Jagung'),
+    ('🍇', 'Anggur'),
+    ('🍊', 'Jeruk'),
+    ('🍑', 'Persik'),
+    ('🫑', 'Paprika'),
+    ('🥔', 'Kentang'),
+    ('🍓', 'Stroberi'),
     ('🍅', 'Tomat'),
-    ('🌶️', 'Cabai'),
-    ('🌿', 'Kangkung'),
-    ('🌱', 'Kemangi'),
-    ('🍃', 'Bayam'),
-    ('🥦', 'Brokoli'),
-    ('🥕', 'Wortel'),
-    ('🧅', 'Bawang'),
-    ('🍆', 'Terong'),
-    ('🥒', 'Timun'),
+    ('🌿', 'Raspberry'),
+    ('🫘', 'Kedelai'),
+    ('🎃', 'Labu'),
     ('🌸', 'Lainnya'),
   ];
 
