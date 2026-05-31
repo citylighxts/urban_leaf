@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/plant_model.dart';
+import '../../services/plant_firestore_service.dart';
 
 class AddEditPlantPage extends StatefulWidget {
   final PlantModel? plant; // null = add mode
@@ -14,6 +15,7 @@ class AddEditPlantPage extends StatefulWidget {
 
 class _AddEditPlantPageState extends State<AddEditPlantPage> {
   final _formKey = GlobalKey<FormState>();
+  final _plantService = PlantFirestoreService();
   late TextEditingController _nameCtrl;
   late TextEditingController _locationCtrl;
   late TextEditingController _notesCtrl;
@@ -22,6 +24,7 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
   String _selectedEmoji = '🥬';
   GrowingMethod _selectedMethod = GrowingMethod.hydroponic;
   DateTime _plantedDate = DateTime.now();
+  bool _isSaving = false;
 
   bool get _isEditing => widget.plant != null;
 
@@ -57,7 +60,7 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
         title: Text(_isEditing ? 'Edit Tanaman' : 'Tambah Tanaman'),
         actions: [
           TextButton(
-            onPressed: _save,
+            onPressed: _isSaving ? null : _save,
             child: Text(
               _isEditing ? 'Simpan' : 'Tambah',
               style: const TextStyle(
@@ -101,8 +104,11 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
                   controller: _locationCtrl,
                   decoration: const InputDecoration(
                     hintText: 'Contoh: Balkon Lantai 2',
-                    prefixIcon: Icon(Icons.location_on_rounded,
-                        color: AppColors.textHint, size: 18),
+                    prefixIcon: Icon(
+                      Icons.location_on_rounded,
+                      color: AppColors.textHint,
+                      size: 18,
+                    ),
                   ),
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Lokasi wajib diisi' : null,
@@ -117,8 +123,7 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
                   (method) => _MethodRadioTile(
                     method: method,
                     isSelected: _selectedMethod == method,
-                    onSelect: () =>
-                        setState(() => _selectedMethod = method),
+                    onSelect: () => setState(() => _selectedMethod = method),
                   ),
                 ),
               ],
@@ -131,7 +136,9 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
                   onTap: _pickDate,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceVariant,
                       borderRadius: BorderRadius.circular(12),
@@ -139,8 +146,11 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today_rounded,
-                            color: AppColors.primary, size: 18),
+                        const Icon(
+                          Icons.calendar_today_rounded,
+                          color: AppColors.primary,
+                          size: 18,
+                        ),
                         const SizedBox(width: 10),
                         Text(
                           '${_plantedDate.day}/${_plantedDate.month}/${_plantedDate.year}',
@@ -150,8 +160,11 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
                           ),
                         ),
                         const Spacer(),
-                        const Icon(Icons.edit_calendar_rounded,
-                            color: AppColors.textHint, size: 16),
+                        const Icon(
+                          Icons.edit_calendar_rounded,
+                          color: AppColors.textHint,
+                          size: 16,
+                        ),
                       ],
                     ),
                   ),
@@ -173,17 +186,23 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
             ),
             const SizedBox(height: 28),
             ElevatedButton(
-              onPressed: _save,
+              onPressed: _isSaving ? null : _save,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: Text(
-                _isEditing ? 'Simpan Perubahan' : 'Tambah ke Kebunku',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      _isEditing ? 'Simpan Perubahan' : 'Tambah ke Kebunku',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
             ),
             const SizedBox(height: 32),
           ],
@@ -208,11 +227,12 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
     if (picked != null) setState(() => _plantedDate = picked);
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final id = widget.plant?.id ??
-        'p${DateTime.now().millisecondsSinceEpoch}';
+    setState(() => _isSaving = true);
+
+    final id = widget.plant?.id ?? 'p${DateTime.now().millisecondsSinceEpoch}';
 
     final result = PlantModel(
       id: id,
@@ -223,14 +243,38 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
       plantedDate: _plantedDate,
       location: _locationCtrl.text.trim(),
       status: widget.plant?.status ?? PlantStatus.healthy,
-      nextWatering: widget.plant?.nextWatering ??
+      nextWatering:
+          widget.plant?.nextWatering ??
           DateTime.now().add(const Duration(hours: 24)),
+      lastDiagnosis: widget.plant?.lastDiagnosis,
       careHistory: widget.plant?.careHistory ?? [],
       diseaseHistory: widget.plant?.diseaseHistory ?? [],
+      minTemp: widget.plant?.minTemp ?? 15,
+      maxTemp: widget.plant?.maxTemp ?? 30,
+      minHumidity: widget.plant?.minHumidity ?? 40,
+      maxHumidity: widget.plant?.maxHumidity ?? 80,
       notes: _notesCtrl.text.trim(),
     );
 
-    Navigator.pop(context, result);
+    try {
+      final savedPlant = _isEditing
+          ? await _plantService.updatePlant(result)
+          : await _plantService.addPlant(result);
+
+      if (!mounted) return;
+      Navigator.pop(context, savedPlant);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menyimpan tanaman: $e'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 }
 
@@ -276,11 +320,11 @@ class _EmojiSelector extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.accent
-                      : AppColors.surface,
+                  color: isSelected ? AppColors.accent : AppColors.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected
@@ -322,10 +366,26 @@ class _MethodRadioTile extends StatelessWidget {
   final VoidCallback onSelect;
 
   static const Map<GrowingMethod, (String, String, String)> _info = {
-    GrowingMethod.hydroponic: ('💧', 'Hidroponik', 'Tanpa media tanah, menggunakan larutan nutrisi'),
-    GrowingMethod.soil: ('🌍', 'Media Tanah', 'Menggunakan tanah biasa atau campuran'),
-    GrowingMethod.container: ('🪴', 'Pot / Kontainer', 'Dalam pot atau wadah terbatas'),
-    GrowingMethod.aeroponic: ('💨', 'Aeroponik', 'Akar digantung, nutrisi disemprotkan'),
+    GrowingMethod.hydroponic: (
+      '💧',
+      'Hidroponik',
+      'Tanpa media tanah, menggunakan larutan nutrisi',
+    ),
+    GrowingMethod.soil: (
+      '🌍',
+      'Media Tanah',
+      'Menggunakan tanah biasa atau campuran',
+    ),
+    GrowingMethod.container: (
+      '🪴',
+      'Pot / Kontainer',
+      'Dalam pot atau wadah terbatas',
+    ),
+    GrowingMethod.aeroponic: (
+      '💨',
+      'Aeroponik',
+      'Akar digantung, nutrisi disemprotkan',
+    ),
   };
 
   const _MethodRadioTile({
@@ -347,8 +407,7 @@ class _MethodRadioTile extends StatelessWidget {
           color: isSelected ? AppColors.accent : AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color:
-                isSelected ? AppColors.primary : const Color(0xFFDDE8E0),
+            color: isSelected ? AppColors.primary : const Color(0xFFDDE8E0),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -360,17 +419,20 @@ class _MethodRadioTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textPrimary,
-                      )),
-                  Text(desc,
-                      style: AppTextStyles.bodySmall
-                          .copyWith(fontSize: 11)),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    desc,
+                    style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                  ),
                 ],
               ),
             ),

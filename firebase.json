@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"urban-leaf-2bc3a","appId":"1:464823614734:android:db69472714ef41cd33ab5f","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"urban-leaf-2bc3a","configurations":{"android":"1:464823614734:android:db69472714ef41cd33ab5f","ios":"1:464823614734:ios:dc7065e1d91d0be733ab5f","macos":"1:464823614734:ios:dc7065e1d91d0be733ab5f","web":"1:464823614734:web:1df33acadec74b2c33ab5f","windows":"1:464823614734:web:80da0b5fc4db699133ab5f"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "urban-leaf-2bc3a",
+          "appId": "1:464823614734:android:db69472714ef41cd33ab5f",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "urban-leaf-2bc3a",
+          "configurations": {
+            "android": "1:464823614734:android:db69472714ef41cd33ab5f",
+            "ios": "1:464823614734:ios:dc7065e1d91d0be733ab5f",
+            "macos": "1:464823614734:ios:dc7065e1d91d0be733ab5f",
+            "web": "1:464823614734:web:1df33acadec74b2c33ab5f",
+            "windows": "1:464823614734:web:80da0b5fc4db699133ab5f"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

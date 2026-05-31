@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/dummy_data.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/plant_model.dart';
 import '../../widgets/kebunku/plant_list_card.dart';
+import '../../services/plant_firestore_service.dart';
 import 'add_edit_plant_page.dart';
 import 'plant_detail_page.dart';
 
@@ -15,30 +15,25 @@ class KebunkuPage extends StatefulWidget {
 }
 
 class _KebunkuPageState extends State<KebunkuPage> {
-  late List<PlantModel> _plants;
+  final _plantService = PlantFirestoreService();
   PlantStatus? _selectedFilter; // null = all
   bool _isGridView = false;
   String _searchQuery = '';
 
-  @override
-  void initState() {
-    super.initState();
-    _plants = List.from(DummyData.plants);
-  }
-
-  List<PlantModel> get _filteredPlants {
-    return _plants.where((p) {
+  List<PlantModel> _filteredPlants(List<PlantModel> plants) {
+    return plants.where((p) {
       final matchesFilter =
           _selectedFilter == null || p.status == _selectedFilter;
-      final matchesSearch = _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
           p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           p.type.toLowerCase().contains(_searchQuery.toLowerCase());
       return matchesFilter && matchesSearch;
     }).toList();
   }
 
-  void _deleteConfirmDialog(PlantModel plant) {
-    showDialog(
+  Future<bool> _confirmDeletePlant(PlantModel plant) async {
+    final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Hapus Tanaman?'),
@@ -47,24 +42,11 @@ class _KebunkuPageState extends State<KebunkuPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Batal'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() => _plants.removeWhere((p) => p.id == plant.id));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${plant.name} dihapus dari kebunmu'),
-                  backgroundColor: AppColors.danger,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              );
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text(
               'Hapus',
               style: TextStyle(color: AppColors.danger),
@@ -73,119 +55,155 @@ class _KebunkuPageState extends State<KebunkuPage> {
         ],
       ),
     );
+
+    if (shouldDelete != true) return false;
+
+    try {
+      await _plantService.deletePlant(plant.id);
+      if (!mounted) return true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${plant.name} dihapus dari kebunmu'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menghapus tanaman: $e'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filteredPlants;
+    return StreamBuilder<List<PlantModel>>(
+      stream: _plantService.watchPlants(),
+      builder: (context, snapshot) {
+        final plants = snapshot.data ?? const [];
+        final filtered = _filteredPlants(plants);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
-                  _SearchBar(
-                    onChanged: (v) => setState(() => _searchQuery = v),
-                  ),
-                  const SizedBox(height: 14),
-                  _FilterChips(
-                    selected: _selectedFilter,
-                    plants: _plants,
-                    onSelect: (status) =>
-                        setState(() => _selectedFilter = status),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: CustomScrollView(
+            slivers: [
+              _buildAppBar(plants.length),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
                     children: [
-                      Text(
-                        '${filtered.length} tanaman',
-                        style: AppTextStyles.bodyMedium,
+                      const SizedBox(height: 8),
+                      _SearchBar(
+                        onChanged: (v) => setState(() => _searchQuery = v),
                       ),
-                      const Spacer(),
-                      _ViewToggle(
-                        isGrid: _isGridView,
-                        onToggle: (v) => setState(() => _isGridView = v),
+                      const SizedBox(height: 14),
+                      _FilterChips(
+                        selected: _selectedFilter,
+                        plants: plants,
+                        onSelect: (status) =>
+                            setState(() => _selectedFilter = status),
                       ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Text(
+                            '${filtered.length} tanaman',
+                            style: AppTextStyles.bodyMedium,
+                          ),
+                          const Spacer(),
+                          _ViewToggle(
+                            isGrid: _isGridView,
+                            onToggle: (v) => setState(() => _isGridView = v),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                ],
+                ),
               ),
+              if (snapshot.hasError)
+                const SliverFillRemaining(
+                  child: Center(child: Text('Gagal memuat data tanaman')),
+                )
+              else if (snapshot.connectionState == ConnectionState.waiting &&
+                  plants.isEmpty)
+                const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (filtered.isEmpty)
+                SliverFillRemaining(
+                  child: _EmptyState(hasFilter: _selectedFilter != null),
+                )
+              else if (_isGridView)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverGrid(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final plant = filtered[index];
+                      return PlantGridCard(
+                        plant: plant,
+                        onTap: () => _navigateToDetail(plant),
+                      );
+                    }, childCount: filtered.length),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.85,
+                        ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final plant = filtered[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Dismissible(
+                          key: Key(plant.id),
+                          direction: DismissDirection.endToStart,
+                          background: _DismissBackground(),
+                          confirmDismiss: (_) => _confirmDeletePlant(plant),
+                          child: PlantListCard(
+                            plant: plant,
+                            onTap: () => _navigateToDetail(plant),
+                          ),
+                        ),
+                      );
+                    }, childCount: filtered.length),
+                  ),
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _navigateToAddPlant,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            elevation: 4,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text(
+              'Tambah Tanaman',
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
-          if (filtered.isEmpty)
-            SliverFillRemaining(child: _EmptyState(hasFilter: _selectedFilter != null))
-          else if (_isGridView)
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverGrid(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final plant = filtered[index];
-                    return PlantGridCard(
-                      plant: plant,
-                      onTap: () => _navigateToDetail(plant),
-                    );
-                  },
-                  childCount: filtered.length,
-                ),
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.85,
-                ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final plant = filtered[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Dismissible(
-                        key: Key(plant.id),
-                        direction: DismissDirection.endToStart,
-                        background: _DismissBackground(),
-                        confirmDismiss: (_) async {
-                          _deleteConfirmDialog(plant);
-                          return false;
-                        },
-                        child: PlantListCard(
-                          plant: plant,
-                          onTap: () => _navigateToDetail(plant),
-                        ),
-                      ),
-                    );
-                  },
-                  childCount: filtered.length,
-                ),
-              ),
-            ),
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _navigateToAddPlant,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'Tambah Tanaman',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -201,12 +219,18 @@ class _KebunkuPageState extends State<KebunkuPage> {
       context,
       MaterialPageRoute(builder: (_) => const AddEditPlantPage()),
     );
-    if (result != null) {
-      setState(() => _plants.insert(0, result));
+    if (result != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${result.name} ditambahkan ke kebunmu'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
-  Widget _buildAppBar() {
+  Widget _buildAppBar(int plantCount) {
     return SliverAppBar(
       pinned: true,
       backgroundColor: AppColors.background,
@@ -216,15 +240,15 @@ class _KebunkuPageState extends State<KebunkuPage> {
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Kebunku 🌱',
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary)),
-          Text(
-            '${_plants.length} tanaman terdaftar',
-            style: AppTextStyles.caption,
+          const Text(
+            'Kebunku 🌱',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
           ),
+          Text('$plantCount tanaman terdaftar', style: AppTextStyles.caption),
         ],
       ),
       actions: [
@@ -291,7 +315,9 @@ class _FilterChips extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 8),
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? AppColors.primary : AppColors.surface,
                   borderRadius: BorderRadius.circular(20),
@@ -319,7 +345,9 @@ class _FilterChips extends StatelessWidget {
                     const SizedBox(width: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 1),
+                        horizontal: 6,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? Colors.white.withOpacity(0.25)
@@ -401,9 +429,11 @@ class _ToggleBtn extends StatelessWidget {
           color: isActive ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon,
-            size: 18,
-            color: isActive ? Colors.white : AppColors.textHint),
+        child: Icon(
+          icon,
+          size: 18,
+          color: isActive ? Colors.white : AppColors.textHint,
+        ),
       ),
     );
   }
@@ -451,7 +481,9 @@ class _EmptyState extends StatelessWidget {
           const Text('🌱', style: TextStyle(fontSize: 64)),
           const SizedBox(height: 16),
           Text(
-            hasFilter ? 'Tidak ada tanaman\ndengan filter ini' : 'Kebunmu masih kosong',
+            hasFilter
+                ? 'Tidak ada tanaman\ndengan filter ini'
+                : 'Kebunmu masih kosong',
             style: AppTextStyles.headingSmall,
             textAlign: TextAlign.center,
           ),
