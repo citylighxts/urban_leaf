@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/dummy_data.dart';
+import '../../core/services/alert_generator_service.dart';
+import '../../core/services/weather_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/alert_model.dart';
 import '../../models/plant_model.dart';
+import '../../models/weather_model.dart';
 import '../../services/plant_firestore_service.dart';
 import '../../widgets/common/section_title.dart';
 import '../../widgets/home/alert_banner_card.dart';
@@ -20,13 +22,53 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late List<AlertModel> _alerts;
   final _plantService = PlantFirestoreService();
+  final _weatherService = WeatherService();
+
+  WeatherModel? _weather;
+  List<ForecastDayModel> _forecast = [];
+  List<AlertModel> _alerts = [];
+  bool _weatherLoading = true;
+  String? _weatherError;
 
   @override
   void initState() {
     super.initState();
-    _alerts = List.from(DummyData.alerts);
+    _loadWeather();
+  }
+
+  Future<void> _loadWeather() async {
+    setState(() {
+      _weatherLoading = true;
+      _weatherError = null;
+    });
+    try {
+      final result = await _weatherService.fetchWeather();
+      if (!mounted) return;
+      setState(() {
+        _weather = result.current;
+        _forecast = result.forecast;
+        _weatherLoading = false;
+        // Reset alerts so StreamBuilder re-generates with real weather
+        _alerts = [];
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _weatherLoading = false;
+        _weatherError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  void _regenerateAlerts(List<PlantModel> plants) {
+    if (_weather == null) return;
+    final generated = AlertGeneratorService.generate(
+      weather: _weather!,
+      forecast: _forecast,
+      plants: plants,
+    );
+    setState(() => _alerts = generated);
   }
 
   void _markAlertHandled(String id) {
@@ -44,6 +86,15 @@ class _HomePageState extends State<HomePage> {
       stream: _plantService.watchPlants(),
       builder: (context, snapshot) {
         final plants = snapshot.data ?? const <PlantModel>[];
+
+        // Re-generate alerts saat weather sudah ada tapi alerts masih kosong
+        // (terjadi setelah weather berhasil di-fetch atau plants baru masuk)
+        if (snapshot.hasData && _weather != null && _alerts.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) { if (mounted) _regenerateAlerts(plants); },
+          );
+        }
+
         final activeAlerts = _alerts
             .where((alert) => alert.status == AlertStatus.active)
             .toList();
@@ -63,10 +114,19 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 4),
-                      WeatherCard(
-                        weather: DummyData.currentWeather,
-                        forecast: DummyData.forecast,
-                      ),
+                      // ── Weather Card ──
+                      if (_weatherLoading)
+                        _WeatherLoading()
+                      else if (_weatherError != null)
+                        _WeatherError(
+                          message: _weatherError!,
+                          onRetry: _loadWeather,
+                        )
+                      else if (_weather != null)
+                        WeatherCard(
+                          weather: _weather!,
+                          forecast: _forecast,
+                        ),
                       const SizedBox(height: 24),
                       SectionTitle(
                         title: 'Status Kebunmu',
@@ -238,6 +298,89 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
+// ── Weather Loading Skeleton ───────────────────────────────────────────────
+
+class _WeatherLoading extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        gradient: AppColors.weatherGradient,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
+            SizedBox(height: 12),
+            Text(
+              'Mengambil data cuaca...',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Weather Error ──────────────────────────────────────────────────────────
+
+class _WeatherError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _WeatherError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.dangerLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_rounded, color: AppColors.danger, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Gagal memuat cuaca',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.danger,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.danger,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Coba lagi'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Inline Error ───────────────────────────────────────────────────────────
 
 class _InlineError extends StatelessWidget {
   final String message;
