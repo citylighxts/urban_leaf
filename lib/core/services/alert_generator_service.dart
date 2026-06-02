@@ -1,0 +1,186 @@
+import '../../models/alert_model.dart';
+import '../../models/plant_model.dart';
+import '../../models/weather_model.dart';
+
+/// Auto-generates smart alerts from real weather data + plant list.
+/// Ini adalah bagian CRUD "Create" untuk fitur Smart Alert milik Hana.
+class AlertGeneratorService {
+  static List<AlertModel> generate({
+    required WeatherModel weather,
+    required List<ForecastDayModel> forecast,
+    required List<PlantModel> plants,
+  }) {
+    final alerts = <AlertModel>[];
+    final now = DateTime.now();
+
+    // Tanaman yang ada di teras/outdoor untuk konteks pesan
+    final outdoorPlants = plants
+        .where((p) =>
+            p.location.toLowerCase().contains('teras') ||
+            p.location.toLowerCase().contains('balkon') ||
+            p.location.toLowerCase().contains('outdoor'))
+        .toList();
+    final outdoorLabel = outdoorPlants.isNotEmpty
+        ? outdoorPlants.map((p) => p.name).join(', ')
+        : 'tanaman outdoor';
+    final outdoorEmoji =
+        outdoorPlants.isNotEmpty ? outdoorPlants.first.emoji : '🪴';
+
+    // ── 1. Heat Stress ────────────────────────────────────────────────────
+    if (weather.temperature >= 32) {
+      final severity =
+          weather.temperature >= 36 ? AlertSeverity.critical : AlertSeverity.high;
+      final affectedPlants = plants
+          .where((p) => weather.temperature > p.maxTemp)
+          .toList();
+      final plantLabel = affectedPlants.isNotEmpty
+          ? affectedPlants.map((p) => p.name).join(', ')
+          : outdoorLabel;
+      final plantEmoji =
+          affectedPlants.isNotEmpty ? affectedPlants.first.emoji : outdoorEmoji;
+
+      alerts.add(AlertModel(
+        id: 'auto_heat_${now.millisecondsSinceEpoch}',
+        type: AlertType.heatStress,
+        severity: severity,
+        title: 'Heat Stress — Suhu ${weather.temperature.toStringAsFixed(0)}°C',
+        description:
+            'Suhu hari ini mencapai ${weather.temperature.toStringAsFixed(0)}°C '
+            '(terasa ${weather.feelsLike.toStringAsFixed(0)}°C). '
+            '$plantLabel berisiko mengalami heat stress dan layu.',
+        plantName: plantLabel,
+        plantEmoji: plantEmoji,
+        status: AlertStatus.active,
+        createdAt: now,
+        actionRequired:
+            'Pindahkan tanaman ke tempat teduh antara pukul 10:00–15:00. '
+            'Tingkatkan frekuensi penyiraman di pagi hari.',
+      ));
+    }
+
+    // ── 2. Fungus Risk ────────────────────────────────────────────────────
+    final nextDayRainProb = forecast.length > 1
+        ? forecast[1].rainProbability
+        : weather.rainProbability;
+    if (weather.humidity >= 80 && nextDayRainProb >= 60) {
+      final severity = weather.humidity >= 90
+          ? AlertSeverity.critical
+          : AlertSeverity.high;
+      final tomatoPlants = plants
+          .where((p) =>
+              p.type.toLowerCase().contains('tomat') ||
+              p.type.toLowerCase().contains('cabai') ||
+              p.status == PlantStatus.quarantine)
+          .toList();
+      final plantLabel = tomatoPlants.isNotEmpty
+          ? tomatoPlants.map((p) => p.name).join(', ')
+          : outdoorLabel;
+      final plantEmoji =
+          tomatoPlants.isNotEmpty ? tomatoPlants.first.emoji : '🍄';
+
+      alerts.add(AlertModel(
+        id: 'auto_fungus_${now.millisecondsSinceEpoch}',
+        type: AlertType.fungusRisk,
+        severity: severity,
+        title:
+            'Risiko Jamur Tinggi — Kelembapan ${weather.humidity.toStringAsFixed(0)}%',
+        description:
+            'Kelembapan udara mencapai ${weather.humidity.toStringAsFixed(0)}% '
+            'dan probabilitas hujan esok hari ${nextDayRainProb.toStringAsFixed(0)}%. '
+            'Kondisi ini memicu pertumbuhan jamur pada $plantLabel.',
+        plantName: plantLabel,
+        plantEmoji: plantEmoji,
+        status: AlertStatus.active,
+        createdAt: now,
+        actionRequired:
+            'Tingkatkan ventilasi, hindari penyiraman daun, '
+            'aplikasikan fungisida preventif berbasis tembaga.',
+      ));
+    }
+
+    // ── 3. UV Index Tinggi ────────────────────────────────────────────────
+    if (weather.uvIndex >= 7) {
+      final severity =
+          weather.uvIndex >= 10 ? AlertSeverity.critical : AlertSeverity.medium;
+
+      alerts.add(AlertModel(
+        id: 'auto_uv_${now.millisecondsSinceEpoch}',
+        type: AlertType.uvHigh,
+        severity: severity,
+        title:
+            'UV Index ${weather.uvIndex.toStringAsFixed(1)} — ${weather.uvLabel}',
+        description:
+            'UV Index mencapai ${weather.uvIndex.toStringAsFixed(1)} (${weather.uvLabel}) '
+            'antara pukul 10:00–14:00. '
+            '$outdoorLabel rentan mengalami sunburn pada daun.',
+        plantName: outdoorLabel,
+        plantEmoji: outdoorEmoji,
+        status: AlertStatus.active,
+        createdAt: now,
+        actionRequired:
+            'Pasang paranet atau shade cloth 30–50% selama jam puncak UV. '
+            'Hindari memindahkan tanaman saat siang.',
+      ));
+    }
+
+    // ── 4. Hujan Lebat (prediksi) ─────────────────────────────────────────
+    final heavyRainDay = forecast.where((f) =>
+        f.precipitation >= 15 && f.rainProbability >= 70).toList();
+    if (heavyRainDay.isNotEmpty) {
+      final days = heavyRainDay.length;
+      alerts.add(AlertModel(
+        id: 'auto_rain_${now.millisecondsSinceEpoch}',
+        type: AlertType.heavyRain,
+        severity: AlertSeverity.medium,
+        title:
+            'Hujan Lebat Diprediksi — ${heavyRainDay.first.precipitation.toStringAsFixed(0)}mm',
+        description:
+            'Curah hujan ${heavyRainDay.first.precipitation.toStringAsFixed(0)}mm '
+            'diprediksi dalam $days hari ke depan (${heavyRainDay.first.dayLabel}). '
+            'Tanaman di pot outdoor rentan tergenang.',
+        plantName: outdoorLabel,
+        plantEmoji: outdoorEmoji,
+        status: AlertStatus.active,
+        createdAt: now,
+        actionRequired:
+            'Pastikan drainase pot baik. Pindahkan tanaman sensitif ke dalam. '
+            'Kurangi jadwal penyiraman manual.',
+      ));
+    }
+
+    // ── 5. Kekeringan ─────────────────────────────────────────────────────
+    final dryDays = forecast
+        .where((f) => f.rainProbability < 15 && f.precipitation < 1)
+        .length;
+    if (dryDays >= 3 && weather.humidity < 45) {
+      final droopyPlants = plants
+          .where((p) => weather.humidity < p.minHumidity)
+          .toList();
+      final plantLabel = droopyPlants.isNotEmpty
+          ? droopyPlants.map((p) => p.name).join(', ')
+          : outdoorLabel;
+      final plantEmoji =
+          droopyPlants.isNotEmpty ? droopyPlants.first.emoji : '🏜️';
+
+      alerts.add(AlertModel(
+        id: 'auto_drought_${now.millisecondsSinceEpoch}',
+        type: AlertType.drought,
+        severity: AlertSeverity.medium,
+        title: 'Risiko Kekeringan — $dryDays Hari Tanpa Hujan',
+        description:
+            'Tidak ada hujan diprediksi selama $dryDays hari ke depan '
+            'dengan kelembapan ${weather.humidity.toStringAsFixed(0)}%. '
+            '$plantLabel berisiko kekurangan air.',
+        plantName: plantLabel,
+        plantEmoji: plantEmoji,
+        status: AlertStatus.active,
+        createdAt: now,
+        actionRequired:
+            'Tingkatkan frekuensi penyiraman di pagi dan sore hari. '
+            'Gunakan mulsa untuk menjaga kelembapan tanah.',
+      ));
+    }
+
+    return alerts;
+  }
+}

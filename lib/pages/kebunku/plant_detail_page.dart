@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/constants/dummy_data.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/diagnosis_model.dart';
 import '../../models/plant_model.dart';
+import '../../services/plant_firestore_service.dart';
 import '../../widgets/common/section_title.dart';
 import '../../widgets/common/status_chip.dart';
 import 'add_edit_plant_page.dart';
@@ -21,6 +23,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late PlantModel _plant;
+  final _plantService = PlantFirestoreService();
 
   @override
   void initState() {
@@ -35,9 +38,8 @@ class _PlantDetailPageState extends State<PlantDetailPage>
     super.dispose();
   }
 
-  List<DiagnosisModel> get _plantDiagnoses => DummyData.diagnoses
-      .where((d) => d.plantId == _plant.id)
-      .toList();
+  List<DiagnosisModel> get _plantDiagnoses =>
+      DummyData.diagnoses.where((d) => d.plantId == _plant.id).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -57,25 +59,30 @@ class _PlantDetailPageState extends State<PlantDetailPage>
           children: [
             _InfoTab(plant: _plant),
             _CareHistoryTab(plant: _plant),
-            _DiagnosisTab(
-              diagnoses: _plantDiagnoses,
-              plant: _plant,
-            ),
+            _DiagnosisTab(diagnoses: _plantDiagnoses, plant: _plant),
           ],
         ),
       ),
       bottomNavigationBar: _BottomActionBar(
         plant: _plant,
-        onWaterNow: () {
-          setState(() {
-            _plant = _plant.copyWith(
-              nextWatering: DateTime.now().add(const Duration(hours: 24)),
-              careHistory: [
-                'Disiram — baru saja',
-                ..._plant.careHistory,
-              ],
-            );
-          });
+        onWaterNow: () async {
+          final now = DateTime.now();
+          final updatedPlant = _plant.copyWith(
+            status: _plant.status == PlantStatus.quarantine
+                ? PlantStatus.quarantine
+                : PlantStatus.healthy,
+            nextWatering: now.add(const Duration(hours: 24)),
+            lastWateredAt: now,
+            careHistory: [
+              'Disiram — ${_formatDateTime(now)}',
+              ..._plant.careHistory,
+            ],
+          );
+
+          final savedPlant = await _plantService.updatePlant(updatedPlant);
+
+          if (!mounted) return;
+          setState(() => _plant = savedPlant);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('✅ Tanaman berhasil disiram!'),
@@ -90,9 +97,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
         onEdit: () async {
           final result = await Navigator.push<PlantModel>(
             context,
-            MaterialPageRoute(
-              builder: (_) => AddEditPlantPage(plant: _plant),
-            ),
+            MaterialPageRoute(builder: (_) => AddEditPlantPage(plant: _plant)),
           );
           if (result != null) setState(() => _plant = result);
         },
@@ -125,10 +130,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
               const SizedBox(height: 4),
               Text(
                 _plant.type,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.white70,
-                ),
+                style: const TextStyle(fontSize: 14, color: Colors.white70),
               ),
             ],
           ),
@@ -204,6 +206,15 @@ class _PlantDetailPageState extends State<PlantDetailPage>
     return '${diff.inDays}h lagi';
   }
 
+  String _formatDateTime(DateTime dt) {
+    final day = dt.day.toString().padLeft(2, '0');
+    final month = dt.month.toString().padLeft(2, '0');
+    final year = dt.year.toString();
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '$day/$month/$year $hour:$minute';
+  }
+
   void _showMoreOptions() {
     showModalBottomSheet(
       context: context,
@@ -212,7 +223,54 @@ class _PlantDetailPageState extends State<PlantDetailPage>
       ),
       builder: (ctx) => _MoreOptionsSheet(
         plant: _plant,
-        onDelete: () {
+        onToggleQuarantine: () async {
+          final isQuarantined = _plant.status == PlantStatus.quarantine;
+          final updatedPlant = isQuarantined
+              ? _plant.copyWith(
+                  status: _plant.previousStatus ?? PlantStatus.healthy,
+                  previousStatus: null,
+                )
+              : _plant.copyWith(
+                  previousStatus: _plant.status,
+                  status: PlantStatus.quarantine,
+                );
+
+          final savedPlant = await _plantService.updatePlant(updatedPlant);
+          if (!mounted) return;
+          setState(() => _plant = savedPlant);
+          Navigator.pop(ctx);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isQuarantined
+                    ? 'Tanaman berhasil keluar dari karantina'
+                    : 'Tanaman ditandai karantina',
+              ),
+              backgroundColor: isQuarantined
+                  ? AppColors.success
+                  : AppColors.warning,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        },
+        onShare: () async {
+          final shareText = [
+            'Tanaman: ${_plant.name}',
+            'Jenis: ${_plant.type}',
+            'Lokasi: ${_plant.location}',
+            'Status: ${_plant.statusLabel}',
+            'Penyiraman terakhir: ${_plant.lastWateredLabel}',
+            'Kondisi terbaru: ${_plant.latestConditionLabel}',
+          ].join('\n');
+
+          await Share.share(shareText, subject: 'Bagikan Tanaman');
+        },
+        onDelete: () async {
+          await _plantService.deletePlant(_plant.id);
+          if (!mounted) return;
           Navigator.pop(ctx);
           Navigator.pop(context, 'deleted');
         },
@@ -227,7 +285,11 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   const _TabBarDelegate({required this.tabController});
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(
       color: AppColors.background,
       child: TabBar(
@@ -236,10 +298,7 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
         unselectedLabelColor: AppColors.textHint,
         indicatorColor: AppColors.primary,
         indicatorWeight: 2.5,
-        labelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
+        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         tabs: const [
           Tab(text: 'Informasi'),
           Tab(text: 'Riwayat Perawatan'),
@@ -277,6 +336,14 @@ class _InfoTab extends StatelessWidget {
             InfoRow(label: 'Metode Tanam', value: plant.methodLabel),
             InfoRow(label: 'Lokasi', value: plant.location),
             InfoRow(
+              label: 'Kondisi Terbaru',
+              value: plant.latestConditionLabel,
+            ),
+            InfoRow(
+              label: 'Penyiraman Terakhir',
+              value: plant.lastWateredLabel,
+            ),
+            InfoRow(
               label: 'Tanggal Tanam',
               value:
                   '${plant.plantedDate.day}/${plant.plantedDate.month}/${plant.plantedDate.year}',
@@ -304,9 +371,7 @@ class _InfoTab extends StatelessWidget {
           const SizedBox(height: 16),
           _Section(
             title: 'Catatan',
-            children: [
-              Text(plant.notes, style: AppTextStyles.bodyMedium),
-            ],
+            children: [Text(plant.notes, style: AppTextStyles.bodyMedium)],
           ),
         ],
         const SizedBox(height: 16),
@@ -340,7 +405,10 @@ class _WeatherCompatibilityCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Kondisi Cuaca Saat Ini', style: AppTextStyles.headingSmall),
+          const Text(
+            'Kondisi Cuaca Saat Ini',
+            style: AppTextStyles.headingSmall,
+          ),
           const SizedBox(height: 12),
           _CompatRow(
             label: 'Suhu ${weather.temperature.toStringAsFixed(0)}°C',
@@ -396,13 +464,17 @@ class _CompatRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: AppTextStyles.labelLarge.copyWith(fontSize: 13)),
-              Text(note,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isOk ? AppColors.textSecondary : AppColors.danger,
-                  )),
+              Text(
+                label,
+                style: AppTextStyles.labelLarge.copyWith(fontSize: 13),
+              ),
+              Text(
+                note,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isOk ? AppColors.textSecondary : AppColors.danger,
+                ),
+              ),
             ],
           ),
         ),
@@ -419,8 +491,7 @@ class _CareHistoryTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       padding: const EdgeInsets.all(20),
-      itemCount:
-          plant.careHistory.isEmpty ? 1 : plant.careHistory.length,
+      itemCount: plant.careHistory.isEmpty ? 1 : plant.careHistory.length,
       itemBuilder: (context, index) {
         if (plant.careHistory.isEmpty) {
           return const Center(
@@ -463,10 +534,7 @@ class _DiagnosisTab extends StatelessWidget {
               style: AppTextStyles.headingSmall,
             ),
             SizedBox(height: 4),
-            Text(
-              'Tanaman kamu sehat!',
-              style: AppTextStyles.bodyMedium,
-            ),
+            Text('Tanaman kamu sehat!', style: AppTextStyles.bodyMedium),
           ],
         ),
       );
@@ -489,10 +557,7 @@ class _DiagnosisCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (severityColor, severityBg) = switch (diagnosis.severity) {
       DiseaseSeverity.mild => (AppColors.success, AppColors.successLight),
-      DiseaseSeverity.moderate => (
-          AppColors.warning,
-          AppColors.warningLight
-        ),
+      DiseaseSeverity.moderate => (AppColors.warning, AppColors.warningLight),
       DiseaseSeverity.severe => (AppColors.danger, AppColors.dangerLight),
     };
 
@@ -509,8 +574,10 @@ class _DiagnosisCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: severityBg,
                   borderRadius: BorderRadius.circular(20),
@@ -526,8 +593,10 @@ class _DiagnosisCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.infoLight,
                   borderRadius: BorderRadius.circular(20),
@@ -553,26 +622,27 @@ class _DiagnosisCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             diagnosis.diseaseNameEn,
-            style: AppTextStyles.bodySmall
-                .copyWith(fontStyle: FontStyle.italic),
+            style: AppTextStyles.bodySmall.copyWith(
+              fontStyle: FontStyle.italic,
+            ),
           ),
           const SizedBox(height: 8),
           Text(diagnosis.description, style: AppTextStyles.bodySmall),
           const SizedBox(height: 10),
           const Text('Solusi:', style: AppTextStyles.labelLarge),
           const SizedBox(height: 6),
-          ...diagnosis.solutions.map((s) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('• ', style: AppTextStyles.bodySmall),
-                    Expanded(
-                      child: Text(s, style: AppTextStyles.bodySmall),
-                    ),
-                  ],
-                ),
-              )),
+          ...diagnosis.solutions.map(
+            (s) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('• ', style: AppTextStyles.bodySmall),
+                  Expanded(child: Text(s, style: AppTextStyles.bodySmall)),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
             'Didiagnosis: ${_formatDate(diagnosis.diagnosedAt)}',
@@ -583,8 +653,7 @@ class _DiagnosisCard extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime dt) =>
-      '${dt.day}/${dt.month}/${dt.year}';
+  String _formatDate(DateTime dt) => '${dt.day}/${dt.month}/${dt.year}';
 }
 
 class _Section extends StatelessWidget {
@@ -715,8 +784,7 @@ class _QuickStat extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color:
-                  highlight ? AppColors.info : AppColors.textPrimary,
+              color: highlight ? AppColors.info : AppColors.textPrimary,
             ),
           ),
           Text(label, style: AppTextStyles.caption),
@@ -740,8 +808,8 @@ class _Divider extends StatelessWidget {
 
 class _BottomActionBar extends StatelessWidget {
   final PlantModel plant;
-  final VoidCallback onWaterNow;
-  final VoidCallback onEdit;
+  final Future<void> Function() onWaterNow;
+  final Future<void> Function() onEdit;
 
   const _BottomActionBar({
     required this.plant,
@@ -753,7 +821,11 @@ class _BottomActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
+        20,
+        12,
+        20,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
@@ -768,7 +840,7 @@ class _BottomActionBar extends StatelessWidget {
         children: [
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: onEdit,
+              onPressed: () async => onEdit(),
               icon: const Icon(Icons.edit_rounded, size: 16),
               label: const Text('Edit'),
             ),
@@ -777,7 +849,7 @@ class _BottomActionBar extends StatelessWidget {
           Expanded(
             flex: 2,
             child: ElevatedButton.icon(
-              onPressed: onWaterNow,
+              onPressed: () async => onWaterNow(),
               icon: const Icon(Icons.water_drop_rounded, size: 16),
               label: const Text('Siram Sekarang'),
             ),
@@ -790,10 +862,14 @@ class _BottomActionBar extends StatelessWidget {
 
 class _MoreOptionsSheet extends StatelessWidget {
   final PlantModel plant;
-  final VoidCallback onDelete;
+  final Future<void> Function() onToggleQuarantine;
+  final Future<void> Function() onShare;
+  final Future<void> Function() onDelete;
 
   const _MoreOptionsSheet({
     required this.plant,
+    required this.onToggleQuarantine,
+    required this.onShare,
     required this.onDelete,
   });
 
@@ -814,22 +890,31 @@ class _MoreOptionsSheet extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           _OptionItem(
-            icon: Icons.coronavirus_rounded,
-            label: 'Tandai Karantina',
-            color: AppColors.quarantine,
-            onTap: () => Navigator.pop(context),
+            icon: plant.status == PlantStatus.quarantine
+                ? Icons.radio_button_checked_rounded
+                : Icons.coronavirus_rounded,
+            label: plant.status == PlantStatus.quarantine
+                ? 'Keluar dari Karantina'
+                : 'Tandai Karantina',
+            color: plant.status == PlantStatus.quarantine
+                ? AppColors.success
+                : AppColors.quarantine,
+            onTap: () async => onToggleQuarantine(),
           ),
           _OptionItem(
             icon: Icons.share_rounded,
             label: 'Bagikan Tanaman',
             color: AppColors.info,
-            onTap: () => Navigator.pop(context),
+            onTap: () {
+              Navigator.pop(context);
+              onShare();
+            },
           ),
           _OptionItem(
             icon: Icons.delete_rounded,
             label: 'Hapus Tanaman',
             color: AppColors.danger,
-            onTap: onDelete,
+            onTap: () async => onDelete(),
           ),
           const SizedBox(height: 8),
         ],
@@ -863,12 +948,14 @@ class _OptionItem extends StatelessWidget {
         ),
         child: Icon(icon, color: color, size: 20),
       ),
-      title: Text(label,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: color,
-          )),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: color,
+        ),
+      ),
       onTap: onTap,
     );
   }

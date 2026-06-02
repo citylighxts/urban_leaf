@@ -37,10 +37,7 @@ class PlantListCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              _EmojiAvatar(
-                emoji: plant.emoji,
-                status: plant.status,
-              ),
+              _EmojiAvatar(emoji: plant.emoji, status: plant.status),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -62,6 +59,15 @@ class PlantListCard extends StatelessWidget {
                     Text(
                       '${plant.type} · ${plant.methodLabel}',
                       style: AppTextStyles.bodySmall,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      plant.latestConditionLabel,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     Row(
@@ -112,10 +118,10 @@ class _EmojiAvatar extends StatelessWidget {
   const _EmojiAvatar({required this.emoji, required this.status});
 
   Color get _borderColor => switch (status) {
-        PlantStatus.healthy => AppColors.healthy,
-        PlantStatus.needsAttention => AppColors.needsAttention,
-        PlantStatus.quarantine => AppColors.quarantine,
-      };
+    PlantStatus.healthy => AppColors.healthy,
+    PlantStatus.needsAttention => AppColors.needsAttention,
+    PlantStatus.quarantine => AppColors.quarantine,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -127,9 +133,7 @@ class _EmojiAvatar extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _borderColor.withOpacity(0.4), width: 2),
       ),
-      child: Center(
-        child: Text(emoji, style: const TextStyle(fontSize: 26)),
-      ),
+      child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
     );
   }
 }
@@ -189,11 +193,7 @@ class PlantGridCard extends StatelessWidget {
   final PlantModel plant;
   final VoidCallback onTap;
 
-  const PlantGridCard({
-    super.key,
-    required this.plant,
-    required this.onTap,
-  });
+  const PlantGridCard({super.key, required this.plant, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -245,24 +245,33 @@ class PlantGridCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
+              Text(plant.type, style: AppTextStyles.bodySmall),
+              const SizedBox(height: 4),
               Text(
-                plant.type,
-                style: AppTextStyles.bodySmall,
+                plant.latestConditionLabel,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const Spacer(),
               Row(
                 children: [
-                  const Icon(Icons.calendar_today_rounded,
-                      size: 11, color: AppColors.textHint),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${plant.ageInDays}h',
-                    style: AppTextStyles.caption,
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    size: 11,
+                    color: AppColors.textHint,
                   ),
+                  const SizedBox(width: 3),
+                  Text('${plant.ageInDays}h', style: AppTextStyles.caption),
                   const SizedBox(width: 8),
                   if (plant.isWateringDue) ...[
-                    const Icon(Icons.water_drop_rounded,
-                        size: 11, color: AppColors.info),
+                    const Icon(
+                      Icons.water_drop_rounded,
+                      size: 11,
+                      color: AppColors.info,
+                    ),
                     const SizedBox(width: 3),
                     const Text(
                       'Siram',

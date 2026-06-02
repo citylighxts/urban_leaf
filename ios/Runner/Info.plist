@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>UrbanLeaf membutuhkan lokasi untuk menampilkan data cuaca real-time di sekitarmu.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>UrbanLeaf membutuhkan lokasi untuk menampilkan data cuaca real-time di sekitarmu.</string>
 </dict>
 </plist>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "464823614734",
+    "project_id": "urban-leaf-2bc3a",
+    "storage_bucket": "urban-leaf-2bc3a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464823614734:android:db69472714ef41cd33ab5f",
+        "android_client_info": {
+          "package_name": "com.example.urban_leaf"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZgYATkLT7JsCanr9JtyGrD127GkrUkVc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
