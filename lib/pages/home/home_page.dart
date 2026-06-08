@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/services/alert_generator_service.dart';
@@ -78,6 +79,26 @@ class _HomePageState extends State<HomePage> {
         plant.copyWith(status: PlantStatus.needsAttention),
       ).catchError((_) => plant);
     }
+  }
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    final String salut;
+    if (hour >= 4 && hour < 10) {
+      salut = 'Pagi';
+    } else if (hour >= 10 && hour < 15) {
+      // 14:30 → use minute check
+      salut = (hour == 14 && DateTime.now().minute >= 30) ? 'Sore' : 'Siang';
+    } else if (hour >= 15 && hour < 18) {
+      salut = 'Sore';
+    } else {
+      salut = 'Malam';
+    }
+    final user = FirebaseAuth.instance.currentUser;
+    final name = (user?.displayName?.trim().isNotEmpty == true)
+        ? user!.displayName!.split(' ').first
+        : user?.email?.split('@').first ?? 'Kamu';
+    return 'Selamat $salut, $name 👋';
   }
 
   void _markAlertHandled(String id) {
@@ -273,7 +294,7 @@ class _HomePageState extends State<HomePage> {
                   color: AppColors.primary,
                 ),
               ),
-              Text('Selamat pagi, Hana 👋', style: AppTextStyles.caption),
+              Text(_greeting, style: AppTextStyles.caption),
             ],
           ),
         ],
