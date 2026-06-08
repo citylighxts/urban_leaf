@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
 import 'pages/auth/login_page.dart';
+import 'services/article_service.dart';
 import 'services/plant_type_service.dart';
 
 void main() async {
@@ -22,6 +23,7 @@ void main() async {
   };
 
   PlantTypeService().seedIfEmpty().catchError((_) {});
+  ArticleService().seedIfEmpty().catchError((_) {});
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

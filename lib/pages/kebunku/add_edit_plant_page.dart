@@ -7,9 +7,10 @@ import '../../services/plant_firestore_service.dart';
 import '../../services/plant_type_service.dart';
 
 class AddEditPlantPage extends StatefulWidget {
-  final PlantModel? plant; // null = add mode
+  final PlantModel? plant;             // null = add mode
+  final String? preselectedTypeId;     // pre-select a plant type when coming from Rekomendasi tab
 
-  const AddEditPlantPage({super.key, this.plant});
+  const AddEditPlantPage({super.key, this.plant, this.preselectedTypeId});
 
   @override
   State<AddEditPlantPage> createState() => _AddEditPlantPageState();
@@ -57,8 +58,14 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
         _typesLoading = false;
         if (_isEditing) {
           _selectedPlantType = types.where((t) => t.name == widget.plant!.type).firstOrNull;
+        } else if (widget.preselectedTypeId != null) {
+          _selectedPlantType = types.where((t) => t.id == widget.preselectedTypeId).firstOrNull;
         }
         _selectedPlantType ??= types.isNotEmpty ? types.first : null;
+        // Pre-fill name when arriving from recommendation
+        if (!_isEditing && _nameCtrl.text.isEmpty && _selectedPlantType != null) {
+          _nameCtrl.text = _selectedPlantType!.name;
+        }
       });
     } catch (_) {
       if (mounted) setState(() => _typesLoading = false);

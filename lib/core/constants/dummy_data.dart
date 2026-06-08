@@ -431,39 +431,6 @@ class DummyData {
     ),
   ];
 
-  // ─── Recommended Plants ───────────────────────────────────────────────────
-
-  static final List<RecommendedPlantModel> recommendedPlants = [
-    RecommendedPlantModel(
-      name: 'Kangkung',
-      emoji: '🌿',
-      reason: 'Tahan panas, cocok untuk musim kemarau Juni ini',
-      difficulty: 'Mudah',
-      benefits: ['Tumbuh cepat 3-4 minggu', 'Tahan suhu 25–38°C', 'Minim perawatan'],
-    ),
-    RecommendedPlantModel(
-      name: 'Cabai Rawit',
-      emoji: '🌶️',
-      reason: 'Produktif di iklim tropis panas seperti sekarang',
-      difficulty: 'Sedang',
-      benefits: ['Nilai ekonomi tinggi', 'Bisa ditanam di pot', 'Buah terus-menerus'],
-    ),
-    RecommendedPlantModel(
-      name: 'Bayam Brasil',
-      emoji: '🍃',
-      reason: 'Sangat adaptif, cocok untuk pemula urban farming',
-      difficulty: 'Mudah',
-      benefits: ['Kaya nutrisi', 'Tahan cuaca ekstrem', 'Panen 30 hari'],
-    ),
-    RecommendedPlantModel(
-      name: 'Mint / Daun Peppermint',
-      emoji: '🌱',
-      reason: 'Ideal untuk windowsill, tidak butuh banyak sinar',
-      difficulty: 'Mudah',
-      benefits: ['Aroma segar', 'Usir serangga alami', 'Bisa di pot kecil'],
-    ),
-  ];
-
   // ─── Helper getters ───────────────────────────────────────────────────────
 
   static int get healthyCount =>
