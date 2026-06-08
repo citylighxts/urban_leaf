@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'urban-leaf-2bc3a.firebasestorage.app',
     measurementId: 'G-HMS6HJ8XEF',
   );
+
 }

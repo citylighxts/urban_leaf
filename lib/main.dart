@@ -1,23 +1,30 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'firebase_options.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
-import 'pages/auth/login_page.dart'; // 1. Pastikan import ke LoginPage buatanmu
+import 'pages/auth/login_page.dart';
 
-void main() async { // 2. Tambahkan kata kunci 'async' di sini
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 3. Inisialisasi Firebase sebelum runApp dijalankan
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   runApp(const UrbanLeafApp());
 }
 
