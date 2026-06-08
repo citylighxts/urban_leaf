@@ -1,4 +1,4 @@
-enum AlertType { heatStress, coldStress, fungusRisk, drought, heavyRain, uvHigh, windStorm }
+enum AlertType { heatStress, coldStress, fungusRisk, drought, heavyRain, uvHigh, windStorm, toleranceExceeded }
 enum AlertStatus { active, handled, dismissed }
 enum AlertSeverity { low, medium, high, critical }
 
@@ -43,6 +43,8 @@ class AlertModel {
         return '☀️';
       case AlertType.windStorm:
         return '💨';
+      case AlertType.toleranceExceeded:
+        return '⚠️';
     }
   }
 

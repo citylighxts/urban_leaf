@@ -37,20 +37,33 @@ class ArticleModel {
         return 'Hama & Penyakit';
     }
   }
-}
 
-class RecommendedPlantModel {
-  final String name;
-  final String emoji;
-  final String reason;
-  final String difficulty;
-  final List<String> benefits;
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'subtitle': subtitle,
+        'content': content,
+        'category': category.name,
+        'emoji': emoji,
+        'readTime': readTime,
+        'publishedAt': publishedAt.millisecondsSinceEpoch,
+        'isFeatured': isFeatured,
+      };
 
-  const RecommendedPlantModel({
-    required this.name,
-    required this.emoji,
-    required this.reason,
-    required this.difficulty,
-    required this.benefits,
-  });
+  factory ArticleModel.fromMap(Map<String, dynamic> map) => ArticleModel(
+        id: map['id'] as String,
+        title: map['title'] as String,
+        subtitle: map['subtitle'] as String,
+        content: map['content'] as String? ?? '',
+        category: ArticleCategory.values.firstWhere(
+          (e) => e.name == map['category'],
+          orElse: () => ArticleCategory.tips,
+        ),
+        emoji: map['emoji'] as String,
+        readTime: map['readTime'] as String,
+        publishedAt: DateTime.fromMillisecondsSinceEpoch(
+          (map['publishedAt'] as num).toInt(),
+        ),
+        isFeatured: map['isFeatured'] as bool? ?? false,
+      );
 }

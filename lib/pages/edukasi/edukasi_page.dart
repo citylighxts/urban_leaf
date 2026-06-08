@@ -3,6 +3,10 @@ import '../../core/constants/dummy_data.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/article_model.dart';
+import '../../models/plant_type_model.dart';
+import '../../pages/kebunku/add_edit_plant_page.dart';
+import '../../services/article_service.dart';
+import '../../services/plant_type_service.dart';
 import '../../widgets/common/section_title.dart';
 
 class EdukasiPage extends StatefulWidget {
@@ -15,12 +19,29 @@ class EdukasiPage extends StatefulWidget {
 class _EdukasiPageState extends State<EdukasiPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  ArticleCategory? _selectedCategory;
+
+  List<PlantTypeModel> _plantTypes = [];
+  bool _plantTypesLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadPlantTypes();
+  }
+
+  Future<void> _loadPlantTypes() async {
+    try {
+      final types = await PlantTypeService().fetchAll();
+      if (mounted) {
+        setState(() {
+          _plantTypes = types;
+          _plantTypesLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _plantTypesLoading = false);
+    }
   }
 
   @override
@@ -34,15 +55,17 @@ class _EdukasiPageState extends State<EdukasiPage>
     return Scaffold(
       backgroundColor: AppColors.background,
       body: NestedScrollView(
-        headerSliverBuilder: (context, _) => [
-          _buildAppBar(),
-        ],
+        headerSliverBuilder: (context, _) => [_buildAppBar()],
         body: TabBarView(
           controller: _tabController,
           children: [
-            _ArticlesTab(selectedCategory: _selectedCategory),
-            const _RecommendedPlantsTab(),
-            const _CalendarTab(),
+            const _ArticlesTab(),
+            _plantTypesLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _RecommendedPlantsTab(plantTypes: _plantTypes),
+            _plantTypesLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _CalendarTab(plantTypes: _plantTypes),
           ],
         ),
       ),
@@ -59,20 +82,20 @@ class _EdukasiPageState extends State<EdukasiPage>
       title: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Edukasi 📚',
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary)),
           Text(
-            'Panduan Urban Farming',
-            style: AppTextStyles.caption,
+            'Edukasi 📚',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary),
           ),
+          Text('Panduan Urban Farming', style: AppTextStyles.caption),
         ],
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.search_rounded, color: AppColors.textPrimary),
+          icon:
+              const Icon(Icons.search_rounded, color: AppColors.textPrimary),
           onPressed: () {},
         ),
       ],
@@ -82,10 +105,7 @@ class _EdukasiPageState extends State<EdukasiPage>
         unselectedLabelColor: AppColors.textHint,
         indicatorColor: AppColors.primary,
         indicatorWeight: 2.5,
-        labelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
+        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         tabs: const [
           Tab(text: 'Artikel'),
           Tab(text: 'Rekomendasi'),
@@ -98,52 +118,110 @@ class _EdukasiPageState extends State<EdukasiPage>
 
 // ─── Articles Tab ─────────────────────────────────────────────────────────────
 
-class _ArticlesTab extends StatelessWidget {
-  final ArticleCategory? selectedCategory;
+class _ArticlesTab extends StatefulWidget {
+  const _ArticlesTab();
 
-  const _ArticlesTab({required this.selectedCategory});
+  @override
+  State<_ArticlesTab> createState() => _ArticlesTabState();
+}
+
+class _ArticlesTabState extends State<_ArticlesTab> {
+  final _service = ArticleService();
+  late Future<List<ArticleModel>> _future;
+  ArticleCategory? _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _service.fetchAll();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final featured =
-        DummyData.articles.where((a) => a.isFeatured).toList();
-    final others =
-        DummyData.articles.where((a) => !a.isFeatured).toList();
+    return FutureBuilder<List<ArticleModel>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('⚠️', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 12),
+                  const Text('Gagal memuat artikel',
+                      style: AppTextStyles.headingSmall),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () =>
+                        setState(() => _future = _service.fetchAll()),
+                    child: const Text('Coba lagi'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _CategoryChips(),
-        const SizedBox(height: 20),
-        if (featured.isNotEmpty) ...[
-          const SectionTitle(title: 'Artikel Pilihan'),
-          const SizedBox(height: 12),
-          _FeaturedArticleCard(article: featured.first),
-          const SizedBox(height: 24),
-        ],
-        const SectionTitle(title: 'Semua Artikel'),
-        const SizedBox(height: 12),
-        ...others
-            .map((a) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _ArticleListCard(article: a),
-                ))
-            .toList(),
-        const SizedBox(height: 32),
-      ],
+        final all = snapshot.data ?? [];
+        final filtered = _selectedCategory == null
+            ? all
+            : all.where((a) => a.category == _selectedCategory).toList();
+        final featured = filtered.where((a) => a.isFeatured).toList();
+        final others = filtered.where((a) => !a.isFeatured).toList();
+
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            _CategoryChips(
+              selected: _selectedCategory,
+              onSelect: (cat) =>
+                  setState(() => _selectedCategory = cat),
+            ),
+            const SizedBox(height: 20),
+            if (featured.isNotEmpty) ...[
+              const SectionTitle(title: 'Artikel Pilihan'),
+              const SizedBox(height: 12),
+              _FeaturedArticleCard(article: featured.first),
+              const SizedBox(height: 24),
+            ],
+            const SectionTitle(title: 'Semua Artikel'),
+            const SizedBox(height: 12),
+            ...others.map(
+              (a) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _ArticleListCard(article: a),
+              ),
+            ),
+            if (filtered.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 40),
+                child: Center(
+                  child: Text(
+                    'Tidak ada artikel dalam kategori ini.',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 32),
+          ],
+        );
+      },
     );
   }
 }
 
-class _CategoryChips extends StatefulWidget {
-  @override
-  State<_CategoryChips> createState() => _CategoryChipsState();
-}
+class _CategoryChips extends StatelessWidget {
+  final ArticleCategory? selected;
+  final ValueChanged<ArticleCategory?> onSelect;
 
-class _CategoryChipsState extends State<_CategoryChips> {
-  ArticleCategory? _selected;
+  const _CategoryChips({required this.selected, required this.onSelect});
 
-  static const categories = [
+  static const _categories = [
     (null, 'Semua', '📖'),
     (ArticleCategory.tips, 'Tips', '💡'),
     (ArticleCategory.tutorial, 'Tutorial', '🎓'),
@@ -157,20 +235,19 @@ class _CategoryChipsState extends State<_CategoryChips> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: categories.map((cat) {
+        children: _categories.map((cat) {
           final (type, label, emoji) = cat;
-          final isSelected = _selected == type;
+          final isSelected = selected == type;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: GestureDetector(
-              onTap: () => setState(() => _selected = type),
+              onTap: () => onSelect(type),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color:
-                      isSelected ? AppColors.primary : AppColors.surface,
+                  color: isSelected ? AppColors.primary : AppColors.surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected
@@ -206,13 +283,16 @@ class _CategoryChipsState extends State<_CategoryChips> {
 
 class _FeaturedArticleCard extends StatelessWidget {
   final ArticleModel article;
-
   const _FeaturedArticleCard({required this.article});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _openArticle(context),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => _ArticleDetailPage(article: article)),
+      ),
       child: Container(
         height: 180,
         decoration: BoxDecoration(
@@ -224,7 +304,7 @@ class _FeaturedArticleCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primaryDark.withOpacity(0.25),
+              color: AppColors.primaryDark.withValues(alpha: 0.25),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -239,7 +319,7 @@ class _FeaturedArticleCard extends StatelessWidget {
                 article.emoji,
                 style: TextStyle(
                   fontSize: 100,
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                 ),
               ),
             ),
@@ -252,7 +332,7 @@ class _FeaturedArticleCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -280,9 +360,8 @@ class _FeaturedArticleCard extends StatelessWidget {
                   Text(
                     article.subtitle,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 12,
-                    ),
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -292,13 +371,9 @@ class _FeaturedArticleCard extends StatelessWidget {
                       const Icon(Icons.access_time_rounded,
                           color: Colors.white70, size: 12),
                       const SizedBox(width: 4),
-                      Text(
-                        article.readTime,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                        ),
-                      ),
+                      Text(article.readTime,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 11)),
                       const Spacer(),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -326,26 +401,20 @@ class _FeaturedArticleCard extends StatelessWidget {
       ),
     );
   }
-
-  void _openArticle(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _ArticleDetailPage(article: article),
-      ),
-    );
-  }
 }
 
 class _ArticleListCard extends StatelessWidget {
   final ArticleModel article;
-
   const _ArticleListCard({required this.article});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {},
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => _ArticleDetailPage(article: article)),
+      ),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -363,8 +432,8 @@ class _ArticleListCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Center(
-                child: Text(article.emoji,
-                    style: const TextStyle(fontSize: 32)),
+                child:
+                    Text(article.emoji, style: const TextStyle(fontSize: 32)),
               ),
             ),
             const SizedBox(width: 12),
@@ -372,25 +441,21 @@ class _ArticleListCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          article.categoryLabel,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
-                        ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      article.categoryLabel,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -405,8 +470,7 @@ class _ArticleListCard extends StatelessWidget {
                       const Icon(Icons.access_time_rounded,
                           size: 11, color: AppColors.textHint),
                       const SizedBox(width: 4),
-                      Text(article.readTime,
-                          style: AppTextStyles.caption),
+                      Text(article.readTime, style: AppTextStyles.caption),
                     ],
                   ),
                 ],
@@ -424,11 +488,19 @@ class _ArticleListCard extends StatelessWidget {
 // ─── Recommended Plants Tab ───────────────────────────────────────────────────
 
 class _RecommendedPlantsTab extends StatelessWidget {
-  const _RecommendedPlantsTab();
+  final List<PlantTypeModel> plantTypes;
+  const _RecommendedPlantsTab({required this.plantTypes});
 
   @override
   Widget build(BuildContext context) {
     final weather = DummyData.currentWeather;
+
+    // Filter plant types whose tolerance range covers the current weather.
+    final recommended = plantTypes.where((p) =>
+        weather.temperature >= p.minTemp &&
+        weather.temperature <= p.maxTemp &&
+        weather.humidity >= p.minHumidity &&
+        weather.humidity <= p.maxHumidity).toList();
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -437,12 +509,24 @@ class _RecommendedPlantsTab extends StatelessWidget {
         const SizedBox(height: 20),
         const SectionTitle(title: 'Cocok Ditanam Bulan Ini'),
         const SizedBox(height: 12),
-        ...DummyData.recommendedPlants.map(
-          (p) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _RecommendedPlantCard(plant: p),
+        if (recommended.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            child: Center(
+              child: Text(
+                'Tidak ada tanaman yang sesuai kondisi cuaca saat ini.',
+                style: AppTextStyles.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          )
+        else
+          ...recommended.map(
+            (p) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _RecommendedPlantCard(plant: p),
+            ),
           ),
-        ),
         const SizedBox(height: 32),
       ],
     );
@@ -460,7 +544,8 @@ class _WeatherContextCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.accentDeep,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryLight.withOpacity(0.3)),
+        border: Border.all(
+            color: AppColors.primaryLight.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -482,9 +567,7 @@ class _WeatherContextCard extends StatelessWidget {
                 Text(
                   'Suhu rata-rata ${weather.temperature.toStringAsFixed(0)}°C · Kelembapan ${weather.humidity.toStringAsFixed(0)}%',
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+                      fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -496,8 +579,7 @@ class _WeatherContextCard extends StatelessWidget {
 }
 
 class _RecommendedPlantCard extends StatelessWidget {
-  final dynamic plant;
-
+  final PlantTypeModel plant;
   const _RecommendedPlantCard({required this.plant});
 
   @override
@@ -522,73 +604,70 @@ class _RecommendedPlantCard extends StatelessWidget {
                   children: [
                     Text(plant.name, style: AppTextStyles.headingSmall),
                     const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.successLight,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            'Kesulitan: ${plant.difficulty}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.success,
-                            ),
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.successLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Kesulitan: ${plant.difficulty}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.success,
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
               ),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddEditPlantPage(
+                      preselectedTypeId: plant.id,
+                    ),
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
-                  'Tanam',
-                  style: TextStyle(fontSize: 12),
-                ),
+                child: const Text('Tanam', style: TextStyle(fontSize: 12)),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            plant.reason,
-            style: AppTextStyles.bodySmall,
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: (plant.benefits as List<String>)
-                .map(
-                  (b) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      b,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
+          Text(plant.reason, style: AppTextStyles.bodySmall),
+          if (plant.benefits.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: plant.benefits
+                  .map(
+                    (b) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        b,
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.textSecondary),
                       ),
                     ),
-                  ),
-                )
-                .toList(),
-          ),
+                  )
+                  .toList(),
+            ),
+          ],
         ],
       ),
     );
@@ -598,7 +677,8 @@ class _RecommendedPlantCard extends StatelessWidget {
 // ─── Calendar Tab ─────────────────────────────────────────────────────────────
 
 class _CalendarTab extends StatefulWidget {
-  const _CalendarTab();
+  final List<PlantTypeModel> plantTypes;
+  const _CalendarTab({required this.plantTypes});
 
   @override
   State<_CalendarTab> createState() => _CalendarTabState();
@@ -609,22 +689,15 @@ class _CalendarTabState extends State<_CalendarTab> {
 
   static const _months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
-  ];
-
-  static const _calendarData = [
-    _CalPlant('Selada', '🥬', [1, 2, 3, 9, 10, 11, 12], 'Hindar bulan terlalu panas'),
-    _CalPlant('Tomat', '🍅', [4, 5, 6, 7], 'Butuh musim kering untuk pembuahan'),
-    _CalPlant('Cabai', '🌶️', [3, 4, 5, 6, 7, 8], 'Tumbuh optimal di musim kemarau'),
-    _CalPlant('Kangkung', '🌿', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 'Bisa ditanam sepanjang tahun'),
-    _CalPlant('Bayam', '🍃', [1, 2, 3, 10, 11, 12], 'Tumbuh cepat di cuaca sejuk'),
-    _CalPlant('Brokoli', '🥦', [4, 5, 6, 7, 8, 9], 'Butuh suhu 15–20°C'),
-    _CalPlant('Wortel', '🥕', [7, 8, 9, 10], 'Musim kering untuk pertumbuhan akar'),
-    _CalPlant('Kemangi', '🌱', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 'Tumbuh baik di suhu hangat'),
+    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
   ];
 
   @override
   Widget build(BuildContext context) {
+    final forMonth = widget.plantTypes
+        .where((p) => p.bestMonths.contains(_selectedMonth))
+        .toList();
+
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -634,24 +707,28 @@ class _CalendarTabState extends State<_CalendarTab> {
           months: _months,
         ),
         const SizedBox(height: 20),
-        Row(
-          children: [
-            Text(
-              'Cocok Ditanam di ${_months[_selectedMonth - 1]}',
-              style: AppTextStyles.headingSmall,
-            ),
-          ],
+        Text(
+          'Cocok Ditanam di ${_months[_selectedMonth - 1]}',
+          style: AppTextStyles.headingSmall,
         ),
         const SizedBox(height: 12),
-        ..._calendarData
-            .where((p) => p.bestMonths.contains(_selectedMonth))
-            .map(
-              (p) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _CalendarPlantTile(plant: p),
+        if (forMonth.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text(
+                'Tidak ada tanaman khusus untuk bulan ini.',
+                style: AppTextStyles.bodySmall,
               ),
-            )
-            .toList(),
+            ),
+          )
+        else
+          ...forMonth.map(
+            (p) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _CalendarPlantTile(plant: p),
+            ),
+          ),
         const SizedBox(height: 20),
         _SeasonalTipsCard(month: _selectedMonth),
         const SizedBox(height: 32),
@@ -690,13 +767,11 @@ class _MonthPicker extends StatelessWidget {
                 duration: const Duration(milliseconds: 200),
                 width: 52,
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.surface,
+                  color: isSelected ? AppColors.primary : AppColors.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isCurrent && !isSelected
-                        ? AppColors.primary.withOpacity(0.5)
+                        ? AppColors.primary.withValues(alpha: 0.5)
                         : isSelected
                             ? AppColors.primary
                             : const Color(0xFFE0ECE4),
@@ -725,7 +800,7 @@ class _MonthPicker extends StatelessWidget {
 }
 
 class _CalendarPlantTile extends StatelessWidget {
-  final _CalPlant plant;
+  final PlantTypeModel plant;
   const _CalendarPlantTile({required this.plant});
 
   @override
@@ -747,12 +822,13 @@ class _CalendarPlantTile extends StatelessWidget {
               children: [
                 Text(plant.name, style: AppTextStyles.labelLarge),
                 const SizedBox(height: 2),
-                Text(plant.tip, style: AppTextStyles.bodySmall),
+                Text(plant.plantingTip, style: AppTextStyles.bodySmall),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: AppColors.healthyLight,
               borderRadius: BorderRadius.circular(20),
@@ -813,7 +889,7 @@ class _SeasonalTipsCard extends StatelessWidget {
           Text(
             _seasonalTip,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               fontSize: 13,
               height: 1.5,
             ),
@@ -842,8 +918,8 @@ class _ArticleDetailPage extends StatelessWidget {
             backgroundColor: AppColors.primaryDark,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: const BoxDecoration(
-                    gradient: AppColors.weatherGradient),
+                decoration:
+                    const BoxDecoration(gradient: AppColors.weatherGradient),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -855,7 +931,7 @@ class _ArticleDetailPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -878,26 +954,28 @@ class _ArticleDetailPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(article.title,
-                      style: AppTextStyles.headingLarge),
+                  Text(article.title, style: AppTextStyles.headingLarge),
                   const SizedBox(height: 6),
-                  Text(article.subtitle,
-                      style: AppTextStyles.bodyMedium),
+                  Text(article.subtitle, style: AppTextStyles.bodyMedium),
                   const SizedBox(height: 8),
                   Row(
                     children: [
                       const Icon(Icons.access_time_rounded,
                           size: 14, color: AppColors.textHint),
                       const SizedBox(width: 4),
-                      Text(article.readTime,
-                          style: AppTextStyles.caption),
+                      Text(article.readTime, style: AppTextStyles.caption),
                     ],
                   ),
                   const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 20),
-                  // Placeholder article content
-                  _ArticleBodyPlaceholder(article: article),
+                  if (article.content.isNotEmpty)
+                    Text(
+                      article.content,
+                      style: AppTextStyles.bodyMedium.copyWith(height: 1.7),
+                    )
+                  else
+                    _ArticleBodyPlaceholder(article: article),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -918,10 +996,7 @@ class _ArticleBodyPlaceholder extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Mengapa Ini Penting?',
-          style: AppTextStyles.headingSmall,
-        ),
+        const Text('Mengapa Ini Penting?', style: AppTextStyles.headingSmall),
         const SizedBox(height: 8),
         Text(
           '${article.subtitle}. Dengan memahami topik ini, kamu dapat meningkatkan produktivitas kebunmu dan menjaga tanaman tetap sehat sepanjang tahun.',
@@ -934,59 +1009,22 @@ class _ArticleBodyPlaceholder extends StatelessWidget {
             color: AppColors.accentDeep,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-                color: AppColors.primaryLight.withOpacity(0.4)),
+                color: AppColors.primaryLight.withValues(alpha: 0.4)),
           ),
-          child: Row(
+          child: const Row(
             children: [
-              const Text('💡', style: TextStyle(fontSize: 18)),
-              const SizedBox(width: 10),
-              const Expanded(
+              Text('💡', style: TextStyle(fontSize: 18)),
+              SizedBox(width: 10),
+              Expanded(
                 child: Text(
                   'Artikel lengkap akan tersedia setelah integrasi CMS selesai.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.primaryDark,
-                  ),
+                  style: TextStyle(fontSize: 13, color: AppColors.primaryDark),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        ...List.generate(
-          3,
-          (i) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Container(
-              height: 14,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-        ),
-        Container(
-          height: 14,
-          width: 200,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
       ],
     );
   }
-}
-
-// ─── Data class for calendar ──────────────────────────────────────────────────
-
-class _CalPlant {
-  final String name;
-  final String emoji;
-  final List<int> bestMonths;
-  final String tip;
-
-  const _CalPlant(this.name, this.emoji, this.bestMonths, this.tip);
 }

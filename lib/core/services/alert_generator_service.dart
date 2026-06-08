@@ -2,10 +2,17 @@ import '../../models/alert_model.dart';
 import '../../models/plant_model.dart';
 import '../../models/weather_model.dart';
 
+class AlertGeneratorResult {
+  final List<AlertModel> alerts;
+  /// IDs of healthy plants whose conditions now exceed their tolerance.
+  final List<String> plantIdsToFlag;
+
+  const AlertGeneratorResult({required this.alerts, required this.plantIdsToFlag});
+}
+
 /// Auto-generates smart alerts from real weather data + plant list.
-/// Ini adalah bagian CRUD "Create" untuk fitur Smart Alert milik Hana.
 class AlertGeneratorService {
-  static List<AlertModel> generate({
+  static AlertGeneratorResult generate({
     required WeatherModel weather,
     required List<ForecastDayModel> forecast,
     required List<PlantModel> plants,
@@ -181,6 +188,50 @@ class AlertGeneratorService {
       ));
     }
 
-    return alerts;
+    // ── 6. Per-plant tolerance check ─────────────────────────────────────
+    // Only flags healthy plants — quarantine/needsAttention are already known.
+    final plantIdsToFlag = <String>[];
+    for (final plant in plants.where((p) => p.status == PlantStatus.healthy)) {
+      final tempOut = weather.temperature < plant.minTemp || weather.temperature > plant.maxTemp;
+      final humOut  = weather.humidity < plant.minHumidity || weather.humidity > plant.maxHumidity;
+      if (!tempOut && !humOut) continue;
+
+      plantIdsToFlag.add(plant.id);
+
+      final issues = <String>[];
+      if (tempOut) {
+        issues.add(
+          weather.temperature > plant.maxTemp
+              ? 'suhu ${weather.temperature.toStringAsFixed(0)}°C (maks ${plant.maxTemp.toStringAsFixed(0)}°C)'
+              : 'suhu ${weather.temperature.toStringAsFixed(0)}°C (min ${plant.minTemp.toStringAsFixed(0)}°C)',
+        );
+      }
+      if (humOut) {
+        issues.add(
+          weather.humidity > plant.maxHumidity
+              ? 'kelembapan ${weather.humidity.toStringAsFixed(0)}% (maks ${plant.maxHumidity.toStringAsFixed(0)}%)'
+              : 'kelembapan ${weather.humidity.toStringAsFixed(0)}% (min ${plant.minHumidity.toStringAsFixed(0)}%)',
+        );
+      }
+
+      alerts.add(AlertModel(
+        id: 'tolerance_${plant.id}_${now.millisecondsSinceEpoch}',
+        type: AlertType.toleranceExceeded,
+        severity: AlertSeverity.high,
+        title: '${plant.emoji} ${plant.name} — Kondisi di Luar Toleransi',
+        description:
+            '${plant.name} mengalami ${issues.join(' dan ')} '
+            'yang melebihi batas toleransinya.',
+        plantName: plant.name,
+        plantEmoji: plant.emoji,
+        status: AlertStatus.active,
+        createdAt: now,
+        actionRequired:
+            'Periksa kondisi ${plant.name} dan pertimbangkan untuk '
+            'memindahkan atau memberikan perlindungan tambahan.',
+      ));
+    }
+
+    return AlertGeneratorResult(alerts: alerts, plantIdsToFlag: plantIdsToFlag);
   }
 }

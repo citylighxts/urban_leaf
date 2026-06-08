@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/constants/dummy_data.dart';
+import '../../core/services/weather_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/diagnosis_model.dart';
 import '../../models/plant_model.dart';
+import '../../models/weather_model.dart';
 import '../../services/plant_firestore_service.dart';
 import '../../widgets/common/section_title.dart';
 import '../../widgets/common/status_chip.dart';
@@ -381,20 +383,37 @@ class _InfoTab extends StatelessWidget {
   }
 }
 
-class _WeatherCompatibilityCard extends StatelessWidget {
+class _WeatherCompatibilityCard extends StatefulWidget {
   final PlantModel plant;
   const _WeatherCompatibilityCard({required this.plant});
 
   @override
-  Widget build(BuildContext context) {
-    final weather = DummyData.currentWeather;
-    final isTempOk =
-        weather.temperature >= plant.minTemp &&
-        weather.temperature <= plant.maxTemp;
-    final isHumidityOk =
-        weather.humidity >= plant.minHumidity &&
-        weather.humidity <= plant.maxHumidity;
+  State<_WeatherCompatibilityCard> createState() =>
+      _WeatherCompatibilityCardState();
+}
 
+class _WeatherCompatibilityCardState extends State<_WeatherCompatibilityCard> {
+  WeatherModel? _weather;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final result = await WeatherService().fetchWeather();
+      if (mounted) setState(() { _weather = result.current; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -405,26 +424,38 @@ class _WeatherCompatibilityCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Kondisi Cuaca Saat Ini',
-            style: AppTextStyles.headingSmall,
-          ),
+          const Text('Kondisi Cuaca Saat Ini', style: AppTextStyles.headingSmall),
           const SizedBox(height: 12),
-          _CompatRow(
-            label: 'Suhu ${weather.temperature.toStringAsFixed(0)}°C',
-            isOk: isTempOk,
-            note: isTempOk
-                ? 'Aman (toleransi ${plant.minTemp.toStringAsFixed(0)}–${plant.maxTemp.toStringAsFixed(0)}°C)'
-                : 'Melewati batas aman! Max ${plant.maxTemp.toStringAsFixed(0)}°C',
-          ),
-          const SizedBox(height: 8),
-          _CompatRow(
-            label: 'Kelembapan ${weather.humidity.toStringAsFixed(0)}%',
-            isOk: isHumidityOk,
-            note: isHumidityOk
-                ? 'Aman (toleransi ${plant.minHumidity.toStringAsFixed(0)}–${plant.maxHumidity.toStringAsFixed(0)}%)'
-                : 'Di luar batas aman',
-          ),
+          if (_loading)
+            const Center(child: CircularProgressIndicator())
+          else if (_error != null)
+            Text('Gagal memuat cuaca', style: TextStyle(color: AppColors.danger, fontSize: 12))
+          else ...[
+            _CompatRow(
+              label: 'Suhu ${_weather!.temperature.toStringAsFixed(0)}°C',
+              isOk: _weather!.temperature >= widget.plant.minTemp &&
+                  _weather!.temperature <= widget.plant.maxTemp,
+              note: _weather!.temperature >= widget.plant.minTemp &&
+                      _weather!.temperature <= widget.plant.maxTemp
+                  ? 'Aman (toleransi ${widget.plant.minTemp.toStringAsFixed(0)}–${widget.plant.maxTemp.toStringAsFixed(0)}°C)'
+                  : 'Melewati batas aman! Max ${widget.plant.maxTemp.toStringAsFixed(0)}°C',
+            ),
+            const SizedBox(height: 8),
+            _CompatRow(
+              label: 'Kelembapan ${_weather!.humidity.toStringAsFixed(0)}%',
+              isOk: _weather!.humidity >= widget.plant.minHumidity &&
+                  _weather!.humidity <= widget.plant.maxHumidity,
+              note: _weather!.humidity >= widget.plant.minHumidity &&
+                      _weather!.humidity <= widget.plant.maxHumidity
+                  ? 'Aman (toleransi ${widget.plant.minHumidity.toStringAsFixed(0)}–${widget.plant.maxHumidity.toStringAsFixed(0)}%)'
+                  : 'Di luar batas aman',
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${_weather!.conditionEmoji} ${_weather!.condition} · ${_weather!.location}',
+              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+          ],
         ],
       ),
     );
