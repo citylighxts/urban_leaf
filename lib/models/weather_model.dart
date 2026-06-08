@@ -23,6 +23,32 @@ class WeatherModel {
     required this.lastUpdated,
   });
 
+  Map<String, dynamic> toJson() => {
+        'temperature': temperature,
+        'feelsLike': feelsLike,
+        'humidity': humidity,
+        'uvIndex': uvIndex,
+        'precipitation': precipitation,
+        'rainProbability': rainProbability,
+        'condition': condition,
+        'conditionEmoji': conditionEmoji,
+        'location': location,
+        'lastUpdated': lastUpdated.toIso8601String(),
+      };
+
+  factory WeatherModel.fromJson(Map<String, dynamic> json) => WeatherModel(
+        temperature: (json['temperature'] as num).toDouble(),
+        feelsLike: (json['feelsLike'] as num).toDouble(),
+        humidity: (json['humidity'] as num).toDouble(),
+        uvIndex: (json['uvIndex'] as num).toDouble(),
+        precipitation: (json['precipitation'] as num).toDouble(),
+        rainProbability: (json['rainProbability'] as num).toDouble(),
+        condition: json['condition'] as String,
+        conditionEmoji: json['conditionEmoji'] as String,
+        location: json['location'] as String,
+        lastUpdated: DateTime.parse(json['lastUpdated'] as String),
+      );
+
   String get uvLabel {
     if (uvIndex < 3) return 'Rendah';
     if (uvIndex < 6) return 'Sedang';
@@ -52,6 +78,29 @@ class ForecastDayModel {
     required this.conditionEmoji,
     required this.uvIndex,
   });
+
+  Map<String, dynamic> toJson() => {
+        'date': date.toIso8601String(),
+        'maxTemp': maxTemp,
+        'minTemp': minTemp,
+        'rainProbability': rainProbability,
+        'precipitation': precipitation,
+        'condition': condition,
+        'conditionEmoji': conditionEmoji,
+        'uvIndex': uvIndex,
+      };
+
+  factory ForecastDayModel.fromJson(Map<String, dynamic> json) =>
+      ForecastDayModel(
+        date: DateTime.parse(json['date'] as String),
+        maxTemp: (json['maxTemp'] as num).toDouble(),
+        minTemp: (json['minTemp'] as num).toDouble(),
+        rainProbability: (json['rainProbability'] as num).toDouble(),
+        precipitation: (json['precipitation'] as num).toDouble(),
+        condition: json['condition'] as String,
+        conditionEmoji: json['conditionEmoji'] as String,
+        uvIndex: (json['uvIndex'] as num).toDouble(),
+      );
 
   String get dayLabel {
     final now = DateTime.now();

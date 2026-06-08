@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
@@ -13,12 +14,60 @@ class WeatherResult {
 
 class WeatherService {
   static const _baseUrl = 'https://api.open-meteo.com/v1/forecast';
+  static const _cacheTtl = Duration(minutes: 30);
+  static const _cacheCollection = 'weather_cache';
 
   /// Fetch current weather + 5-day forecast using device GPS.
+  /// Returns cached Firestore data if the location is within ~1 km and
+  /// the data is less than 30 minutes old; otherwise calls the API.
   Future<WeatherResult> fetchWeather() async {
     final position = await _getPosition();
+    final cached = await _readCache(position);
+    if (cached != null) return cached;
     final location = await _reverseGeocode(position);
-    return _fetchFromApi(position, location);
+    final result = await _fetchFromApi(position, location);
+    _writeCache(position, result);
+    return result;
+  }
+
+  // ─── Cache ────────────────────────────────────────────────────────────────
+
+  // Round to 2 decimal places → ~1.1 km grid cell
+  String _cacheKey(Position pos) =>
+      '${pos.latitude.toStringAsFixed(2)}_${pos.longitude.toStringAsFixed(2)}';
+
+  Future<WeatherResult?> _readCache(Position pos) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection(_cacheCollection)
+          .doc(_cacheKey(pos))
+          .get();
+      if (!doc.exists) return null;
+
+      final data = doc.data()!;
+      final cachedAt = DateTime.parse(data['cachedAt'] as String);
+      if (DateTime.now().difference(cachedAt) > _cacheTtl) return null;
+
+      final current = WeatherModel.fromJson(
+          Map<String, dynamic>.from(data['current'] as Map));
+      final forecast = (data['forecast'] as List)
+          .map((e) => ForecastDayModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      return WeatherResult(current: current, forecast: forecast);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _writeCache(Position pos, WeatherResult result) {
+    FirebaseFirestore.instance
+        .collection(_cacheCollection)
+        .doc(_cacheKey(pos))
+        .set({
+      'cachedAt': DateTime.now().toIso8601String(),
+      'current': result.current.toJson(),
+      'forecast': result.forecast.map((f) => f.toJson()).toList(),
+    }).catchError((_) {});
   }
 
   // ─── GPS ──────────────────────────────────────────────────────────────────
