@@ -63,12 +63,21 @@ class _HomePageState extends State<HomePage> {
 
   void _regenerateAlerts(List<PlantModel> plants) {
     if (_weather == null) return;
-    final generated = AlertGeneratorService.generate(
+    final result = AlertGeneratorService.generate(
       weather: _weather!,
       forecast: _forecast,
       plants: plants,
     );
-    setState(() => _alerts = generated);
+    setState(() => _alerts = result.alerts);
+
+    // Auto-flag healthy plants whose conditions exceed their tolerance.
+    for (final id in result.plantIdsToFlag) {
+      final plant = plants.where((p) => p.id == id).firstOrNull;
+      if (plant == null) continue;
+      _plantService.updatePlant(
+        plant.copyWith(status: PlantStatus.needsAttention),
+      ).catchError((_) => plant);
+    }
   }
 
   void _markAlertHandled(String id) {

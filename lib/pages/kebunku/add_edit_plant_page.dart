@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/plant_model.dart';
+import '../../models/plant_type_model.dart';
 import '../../services/plant_firestore_service.dart';
+import '../../services/plant_type_service.dart';
 
 class AddEditPlantPage extends StatefulWidget {
   final PlantModel? plant; // null = add mode
@@ -16,15 +18,17 @@ class AddEditPlantPage extends StatefulWidget {
 class _AddEditPlantPageState extends State<AddEditPlantPage> {
   final _formKey = GlobalKey<FormState>();
   final _plantService = PlantFirestoreService();
+  final _plantTypeService = PlantTypeService();
   late TextEditingController _nameCtrl;
   late TextEditingController _locationCtrl;
   late TextEditingController _notesCtrl;
 
-  String _selectedType = 'Selada';
-  String _selectedEmoji = '🥬';
+  List<PlantTypeModel> _plantTypes = [];
+  PlantTypeModel? _selectedPlantType;
   GrowingMethod _selectedMethod = GrowingMethod.hydroponic;
   DateTime _plantedDate = DateTime.now();
   bool _isSaving = false;
+  bool _typesLoading = true;
 
   bool get _isEditing => widget.plant != null;
 
@@ -37,10 +41,27 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
     _notesCtrl = TextEditingController(text: plant?.notes ?? '');
 
     if (plant != null) {
-      _selectedType = plant.type;
-      _selectedEmoji = plant.emoji;
       _selectedMethod = plant.method;
       _plantedDate = plant.plantedDate;
+    }
+
+    _loadPlantTypes();
+  }
+
+  Future<void> _loadPlantTypes() async {
+    try {
+      final types = await _plantTypeService.fetchAll();
+      if (!mounted) return;
+      setState(() {
+        _plantTypes = types;
+        _typesLoading = false;
+        if (_isEditing) {
+          _selectedPlantType = types.where((t) => t.name == widget.plant!.type).firstOrNull;
+        }
+        _selectedPlantType ??= types.isNotEmpty ? types.first : null;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _typesLoading = false);
     }
   }
 
@@ -77,14 +98,20 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _EmojiSelector(
-              selected: _selectedEmoji,
-              onSelect: (emoji, type) => setState(() {
-                _selectedEmoji = emoji;
-                _selectedType = type;
-                if (_nameCtrl.text.isEmpty) _nameCtrl.text = type;
-              }),
-            ),
+            _typesLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _EmojiSelector(
+                    plantTypes: _plantTypes,
+                    selected: _selectedPlantType,
+                    onSelect: (t) => setState(() {
+                      _selectedPlantType = t;
+                      if (_nameCtrl.text.isEmpty) _nameCtrl.text = t.name;
+                    }),
+                  ),
+            if (_selectedPlantType != null) ...[
+              const SizedBox(height: 10),
+              _TolerancePreview(plantType: _selectedPlantType!),
+            ],
             const SizedBox(height: 20),
             _FormCard(
               title: 'Informasi Dasar',
@@ -234,11 +261,12 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
 
     final id = widget.plant?.id ?? 'p${DateTime.now().millisecondsSinceEpoch}';
 
+    final plantType = _selectedPlantType;
     final result = PlantModel(
       id: id,
       name: _nameCtrl.text.trim(),
-      type: _selectedType,
-      emoji: _selectedEmoji,
+      type: plantType?.name ?? widget.plant?.type ?? '',
+      emoji: plantType?.emoji ?? widget.plant?.emoji ?? '🌱',
       method: _selectedMethod,
       plantedDate: _plantedDate,
       location: _locationCtrl.text.trim(),
@@ -249,10 +277,10 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
       lastDiagnosis: widget.plant?.lastDiagnosis,
       careHistory: widget.plant?.careHistory ?? [],
       diseaseHistory: widget.plant?.diseaseHistory ?? [],
-      minTemp: widget.plant?.minTemp ?? 15,
-      maxTemp: widget.plant?.maxTemp ?? 30,
-      minHumidity: widget.plant?.minHumidity ?? 40,
-      maxHumidity: widget.plant?.maxHumidity ?? 80,
+      minTemp: plantType?.minTemp ?? widget.plant?.minTemp ?? 15,
+      maxTemp: plantType?.maxTemp ?? widget.plant?.maxTemp ?? 30,
+      minHumidity: plantType?.minHumidity ?? widget.plant?.minHumidity ?? 40,
+      maxHumidity: plantType?.maxHumidity ?? widget.plant?.maxHumidity ?? 80,
       notes: _notesCtrl.text.trim(),
     );
 
@@ -279,28 +307,15 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
 }
 
 class _EmojiSelector extends StatelessWidget {
-  final String selected;
-  final void Function(String emoji, String type) onSelect;
+  final List<PlantTypeModel> plantTypes;
+  final PlantTypeModel? selected;
+  final void Function(PlantTypeModel) onSelect;
 
-  static const List<(String, String)> _types = [
-    ('🍎', 'Apel'),
-    ('🫐', 'Blueberry'),
-    ('🍒', 'Ceri'),
-    ('🌽', 'Jagung'),
-    ('🍇', 'Anggur'),
-    ('🍊', 'Jeruk'),
-    ('🍑', 'Persik'),
-    ('🫑', 'Paprika'),
-    ('🥔', 'Kentang'),
-    ('🍓', 'Stroberi'),
-    ('🍅', 'Tomat'),
-    ('🌿', 'Raspberry'),
-    ('🫘', 'Kedelai'),
-    ('🎃', 'Labu'),
-    ('🌸', 'Lainnya'),
-  ];
-
-  const _EmojiSelector({required this.selected, required this.onSelect});
+  const _EmojiSelector({
+    required this.plantTypes,
+    required this.selected,
+    required this.onSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -312,11 +327,10 @@ class _EmojiSelector extends StatelessWidget {
         Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: _types.map((t) {
-            final (emoji, type) = t;
-            final isSelected = selected == emoji;
+          children: plantTypes.map((t) {
+            final isSelected = selected?.id == t.id;
             return GestureDetector(
-              onTap: () => onSelect(emoji, type),
+              onTap: () => onSelect(t),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
@@ -335,10 +349,10 @@ class _EmojiSelector extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    Text(emoji, style: const TextStyle(fontSize: 24)),
+                    Text(t.emoji, style: const TextStyle(fontSize: 24)),
                     const SizedBox(height: 4),
                     Text(
-                      type,
+                      t.name,
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: isSelected
@@ -445,6 +459,45 @@ class _MethodRadioTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TolerancePreview extends StatelessWidget {
+  final PlantTypeModel plantType;
+  const _TolerancePreview({required this.plantType});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.accent,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFB7DFC4)),
+      ),
+      child: Row(
+        children: [
+          const Text('🌡️', style: TextStyle(fontSize: 14)),
+          const SizedBox(width: 6),
+          Text(
+            '${plantType.minTemp.toStringAsFixed(0)}–${plantType.maxTemp.toStringAsFixed(0)}°C',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+          ),
+          const SizedBox(width: 14),
+          const Text('💧', style: TextStyle(fontSize: 14)),
+          const SizedBox(width: 6),
+          Text(
+            '${plantType.minHumidity.toStringAsFixed(0)}–${plantType.maxHumidity.toStringAsFixed(0)}% RH',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+          ),
+          const Spacer(),
+          Text(
+            'Toleransi ${plantType.name}',
+            style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+          ),
+        ],
       ),
     );
   }
