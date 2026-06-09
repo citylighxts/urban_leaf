@@ -234,7 +234,13 @@ class PlantGridCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  PlantStatusChip(status: plant.status, small: true),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: PlantStatusChip(status: plant.status, small: true),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),

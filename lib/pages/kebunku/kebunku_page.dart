@@ -8,20 +8,56 @@ import 'add_edit_plant_page.dart';
 import 'plant_detail_page.dart';
 
 class KebunkuPage extends StatefulWidget {
-  const KebunkuPage({super.key});
+  final PlantStatus? initialFilter;
+  const KebunkuPage({super.key, this.initialFilter});
 
   @override
   State<KebunkuPage> createState() => _KebunkuPageState();
 }
 
+enum PlantSort { newest, oldest, nameAZ, nameZA, status, wateringDue }
+
+extension PlantSortLabel on PlantSort {
+  String get label => switch (this) {
+    PlantSort.newest      => 'Terbaru Ditanam',
+    PlantSort.oldest      => 'Terlama Ditanam',
+    PlantSort.nameAZ      => 'Nama A–Z',
+    PlantSort.nameZA      => 'Nama Z–A',
+    PlantSort.status      => 'Butuh Perhatian',
+    PlantSort.wateringDue => 'Siram Terdekat',
+  };
+
+  IconData get icon => switch (this) {
+    PlantSort.newest      => Icons.fiber_new_rounded,
+    PlantSort.oldest      => Icons.history_rounded,
+    PlantSort.nameAZ      => Icons.sort_by_alpha_rounded,
+    PlantSort.nameZA      => Icons.sort_by_alpha_rounded,
+    PlantSort.status      => Icons.warning_amber_rounded,
+    PlantSort.wateringDue => Icons.water_drop_rounded,
+  };
+}
+
+int _statusPriority(PlantStatus s) => switch (s) {
+  PlantStatus.quarantine     => 0,
+  PlantStatus.needsAttention => 1,
+  PlantStatus.healthy        => 2,
+};
+
 class _KebunkuPageState extends State<KebunkuPage> {
   final _plantService = PlantFirestoreService();
-  PlantStatus? _selectedFilter; // null = all
+  late PlantStatus? _selectedFilter;
+  PlantSort _selectedSort = PlantSort.newest;
   bool _isGridView = false;
   String _searchQuery = '';
 
+  @override
+  void initState() {
+    super.initState();
+    _selectedFilter = widget.initialFilter;
+  }
+
   List<PlantModel> _filteredPlants(List<PlantModel> plants) {
-    return plants.where((p) {
+    final filtered = plants.where((p) {
       final matchesFilter =
           _selectedFilter == null || p.status == _selectedFilter;
       final matchesSearch =
@@ -30,6 +66,33 @@ class _KebunkuPageState extends State<KebunkuPage> {
           p.type.toLowerCase().contains(_searchQuery.toLowerCase());
       return matchesFilter && matchesSearch;
     }).toList();
+
+    filtered.sort((a, b) => switch (_selectedSort) {
+      PlantSort.newest      => b.plantedDate.compareTo(a.plantedDate),
+      PlantSort.oldest      => a.plantedDate.compareTo(b.plantedDate),
+      PlantSort.nameAZ      => a.name.compareTo(b.name),
+      PlantSort.nameZA      => b.name.compareTo(a.name),
+      PlantSort.status      => _statusPriority(a.status).compareTo(_statusPriority(b.status)),
+      PlantSort.wateringDue => a.nextWatering.compareTo(b.nextWatering),
+    });
+
+    return filtered;
+  }
+
+  void _showSortSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _SortSheet(
+        selected: _selectedSort,
+        onSelect: (sort) {
+          setState(() => _selectedSort = sort);
+          Navigator.pop(context);
+        },
+      ),
+    );
   }
 
   Future<bool> _confirmDeletePlant(PlantModel plant) async {
@@ -253,8 +316,13 @@ class _KebunkuPageState extends State<KebunkuPage> {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.sort_rounded, color: AppColors.textPrimary),
-          onPressed: () {},
+          icon: Icon(
+            Icons.sort_rounded,
+            color: _selectedSort != PlantSort.newest
+                ? AppColors.primary
+                : AppColors.textPrimary,
+          ),
+          onPressed: _showSortSheet,
         ),
         const SizedBox(width: 4),
       ],
@@ -463,6 +531,73 @@ class _DismissBackground extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SortSheet extends StatelessWidget {
+  final PlantSort selected;
+  final ValueChanged<PlantSort> onSelect;
+
+  const _SortSheet({required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textHint.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Urutkan',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...PlantSort.values.map((sort) {
+              final isSelected = sort == selected;
+              return ListTile(
+                leading: Icon(
+                  sort.icon,
+                  color: isSelected ? AppColors.primary : AppColors.textHint,
+                  size: 20,
+                ),
+                title: Text(
+                  sort.label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                  ),
+                ),
+                trailing: isSelected
+                    ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 18)
+                    : null,
+                onTap: () => onSelect(sort),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }

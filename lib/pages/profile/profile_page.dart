@@ -92,21 +92,21 @@ class _ProfilePageState extends State<ProfilePage> {
                             label: 'Total Tanaman',
                             value: '${plants.length} tanaman',
                             color: AppColors.primary,
-                            onTap: _goToKebunku,
+                            onTap: () => _goToKebunku(),
                           ),
                           _ProfileTile(
                             icon: Icons.check_circle_rounded,
                             label: 'Tanaman Sehat',
                             value: '$healthyCount tanaman',
                             color: AppColors.healthy,
-                            onTap: _goToKebunku,
+                            onTap: () => _goToKebunku(filter: PlantStatus.healthy),
                           ),
                           _ProfileTile(
                             icon: Icons.warning_rounded,
                             label: 'Perlu Perhatian',
                             value: '$attentionCount tanaman',
                             color: AppColors.needsAttention,
-                            onTap: _goToKebunku,
+                            onTap: () => _goToKebunku(filter: PlantStatus.needsAttention),
                           ),
                           _ProfileTile(
                             icon: Icons.coronavirus_rounded,
@@ -114,7 +114,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             value: '$quarantineCount tanaman',
                             color: AppColors.quarantine,
                             isLast: true,
-                            onTap: _goToKebunku,
+                            onTap: () => _goToKebunku(filter: PlantStatus.quarantine),
                           ),
                         ],
                       ),
@@ -158,10 +158,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _goToKebunku() {
+  void _goToKebunku({PlantStatus? filter}) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const KebunkuPage()),
+      MaterialPageRoute(builder: (_) => KebunkuPage(initialFilter: filter)),
     );
   }
 
