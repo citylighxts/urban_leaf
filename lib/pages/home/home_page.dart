@@ -38,13 +38,13 @@ class _HomePageState extends State<HomePage> {
     _loadWeather();
   }
 
-  Future<void> _loadWeather() async {
+  Future<void> _loadWeather({bool forceRefresh = false}) async {
     setState(() {
       _weatherLoading = true;
       _weatherError = null;
     });
     try {
-      final result = await _weatherService.fetchWeather();
+      final result = await _weatherService.fetchWeather(forceRefresh: forceRefresh);
       if (!mounted) return;
       setState(() {
         _weather = result.current;
@@ -61,6 +61,8 @@ class _HomePageState extends State<HomePage> {
       });
     }
   }
+
+  Future<void> _onRefresh() => _loadWeather(forceRefresh: true);
 
   void _regenerateAlerts(List<PlantModel> plants) {
     if (_weather == null) return;
@@ -134,7 +136,9 @@ class _HomePageState extends State<HomePage> {
 
         return Scaffold(
           backgroundColor: AppColors.background,
-          body: CustomScrollView(
+          body: RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: CustomScrollView(
             slivers: [
               _buildAppBar(),
               SliverToBoxAdapter(
@@ -256,6 +260,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ],
+            ),
           ),
         );
       },

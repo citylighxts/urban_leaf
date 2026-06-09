@@ -98,9 +98,9 @@ class WeatherCard extends StatelessWidget {
             color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Text(
-            'Real-time',
-            style: TextStyle(
+          child: Text(
+            weather.lastUpdatedLabel,
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 10,
               fontWeight: FontWeight.w600,

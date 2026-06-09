@@ -49,6 +49,13 @@ class WeatherModel {
         lastUpdated: DateTime.parse(json['lastUpdated'] as String),
       );
 
+  String get lastUpdatedLabel {
+    final diff = DateTime.now().difference(lastUpdated);
+    if (diff.inMinutes < 1) return 'Baru saja';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} mnt lalu';
+    return '${diff.inHours} jam lalu';
+  }
+
   String get uvLabel {
     if (uvIndex < 3) return 'Rendah';
     if (uvIndex < 6) return 'Sedang';

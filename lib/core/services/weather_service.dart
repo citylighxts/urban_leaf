@@ -24,14 +24,16 @@ class WeatherService {
   /// Fetch current weather + 5-day forecast using device GPS.
   /// Returns in-memory result if still within TTL (avoids GPS on every call),
   /// then falls back to Firestore cache, then the live API.
-  Future<WeatherResult> fetchWeather() async {
-    if (_memCache != null &&
+  /// Pass [forceRefresh] to bypass all caches and always hit the API.
+  Future<WeatherResult> fetchWeather({bool forceRefresh = false}) async {
+    if (!forceRefresh &&
+        _memCache != null &&
         _memCacheTime != null &&
         DateTime.now().difference(_memCacheTime!) < _cacheTtl) {
       return _memCache!;
     }
     final position = await _getPosition();
-    final cached = await _readCache(position);
+    final cached = forceRefresh ? null : await _readCache(position);
     if (cached != null) {
       _memCache = cached;
       _memCacheTime = DateTime.now();
