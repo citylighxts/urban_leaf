@@ -84,7 +84,7 @@ class _AiScannerPageState extends State<AiScannerPage>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
@@ -109,7 +109,7 @@ class _AiScannerPageState extends State<AiScannerPage>
               Text(
                 'Powered by Machine Learning',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 11,
                 ),
               ),
@@ -168,7 +168,7 @@ class _AiScannerPageState extends State<AiScannerPage>
                               Text(
                                 'Arahkan kamera ke daun tanaman',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.4),
+                                  color: Colors.white.withValues(alpha: 0.4),
                                   fontSize: 13,
                                 ),
                               ),
@@ -344,7 +344,7 @@ class _ScanLineOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: animation,
-      builder: (_, __) {
+      builder: (_, _) {
         return Positioned(
           top: animation.value *
               (MediaQuery.of(context).size.height * 0.4),
@@ -356,13 +356,13 @@ class _ScanLineOverlay extends StatelessWidget {
               gradient: LinearGradient(
                 colors: [
                   Colors.transparent,
-                  Colors.greenAccent.withOpacity(0.8),
+                  Colors.greenAccent.withValues(alpha: 0.8),
                   Colors.transparent,
                 ],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.greenAccent.withOpacity(0.4),
+                  color: Colors.greenAccent.withValues(alpha: 0.4),
                   blurRadius: 8,
                 ),
               ],
@@ -405,7 +405,7 @@ class _AnalyzingOverlayState extends State<_AnalyzingOverlay>
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withOpacity(0.6),
+      color: Colors.black.withValues(alpha: 0.6),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -422,7 +422,7 @@ class _AnalyzingOverlayState extends State<_AnalyzingOverlay>
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: Colors.greenAccent.withOpacity(0.15),
+                  color: Colors.greenAccent.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: Colors.greenAccent,
@@ -465,7 +465,7 @@ class _ScanBrackets extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color =
-        isActive ? Colors.greenAccent : Colors.white.withOpacity(0.5);
+        isActive ? Colors.greenAccent : Colors.white.withValues(alpha: 0.5);
     return Stack(
       children: [
         // Top-left
@@ -555,7 +555,7 @@ class _ShutterButton extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: (isScanning ? Colors.greenAccent : Colors.white)
-                  .withOpacity(0.3),
+                  .withValues(alpha: 0.3),
               blurRadius: 16,
               spreadRadius: 4,
             ),
@@ -606,7 +606,7 @@ class _ControlBtn extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white70, size: 22),
@@ -628,7 +628,7 @@ class _ScanTipRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.07),
+        color: Colors.white.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(10),
       ),
       child: const Row(
@@ -663,7 +663,7 @@ class _TopAction extends StatelessWidget {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: Colors.white70, size: 18),
@@ -750,14 +750,14 @@ class _DiagnosisResult extends StatelessWidget {
                     _ResultPill(
                       label: 'Keparahan: ${diagnosis.severityLabel}',
                       color: severityColor,
-                      bgColor: severityBg.withOpacity(0.3),
+                      bgColor: severityBg.withValues(alpha: 0.3),
                     ),
                     const SizedBox(width: 8),
                     _ResultPill(
                       label:
                           '${(diagnosis.confidence * 100).toStringAsFixed(0)}% akurasi',
                       color: Colors.white,
-                      bgColor: Colors.white.withOpacity(0.15),
+                      bgColor: Colors.white.withValues(alpha: 0.15),
                     ),
                   ],
                 ),
@@ -1020,7 +1020,7 @@ class _SaveToPlatButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.3),
+              color: AppColors.primary.withValues(alpha: 0.3),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

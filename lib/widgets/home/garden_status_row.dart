@@ -114,7 +114,7 @@ class _StatusCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
-                color: color.withOpacity(0.8),
+                color: color.withValues(alpha: 0.8),
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

@@ -131,7 +131,7 @@ class _EmojiAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _borderColor.withOpacity(0.4), width: 2),
+        border: Border.all(color: _borderColor.withValues(alpha: 0.4), width: 2),
       ),
       child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
     );

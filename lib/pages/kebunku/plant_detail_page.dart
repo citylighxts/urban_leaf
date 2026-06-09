@@ -68,6 +68,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
       bottomNavigationBar: _BottomActionBar(
         plant: _plant,
         onWaterNow: () async {
+          final messenger = ScaffoldMessenger.of(context);
           final now = DateTime.now();
           final updatedPlant = _plant.copyWith(
             status: _plant.status == PlantStatus.quarantine
@@ -85,7 +86,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
 
           if (!mounted) return;
           setState(() => _plant = savedPlant);
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
               content: const Text('✅ Tanaman berhasil disiram!'),
               backgroundColor: AppColors.success,
@@ -97,8 +98,8 @@ class _PlantDetailPageState extends State<PlantDetailPage>
           );
         },
         onEdit: () async {
-          final result = await Navigator.push<PlantModel>(
-            context,
+          final navigator = Navigator.of(context);
+          final result = await navigator.push<PlantModel>(
             MaterialPageRoute(builder: (_) => AddEditPlantPage(plant: _plant)),
           );
           if (result != null) setState(() => _plant = result);
@@ -226,6 +227,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
       builder: (ctx) => _MoreOptionsSheet(
         plant: _plant,
         onToggleQuarantine: () async {
+          final messenger = ScaffoldMessenger.of(context);
           final isQuarantined = _plant.status == PlantStatus.quarantine;
           final updatedPlant = isQuarantined
               ? _plant.copyWith(
@@ -241,7 +243,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
           if (!mounted) return;
           setState(() => _plant = savedPlant);
           Navigator.pop(ctx);
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
               content: Text(
                 isQuarantined
@@ -271,10 +273,11 @@ class _PlantDetailPageState extends State<PlantDetailPage>
           await Share.share(shareText, subject: 'Bagikan Tanaman');
         },
         onDelete: () async {
+          final navigator = Navigator.of(context);
           await _plantService.deletePlant(_plant.id);
           if (!mounted) return;
-          Navigator.pop(ctx);
-          Navigator.pop(context, 'deleted');
+          navigator.pop();
+          navigator.pop('deleted');
         },
       ),
     );
@@ -573,7 +576,7 @@ class _DiagnosisTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(20),
       itemCount: diagnoses.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) =>
           _DiagnosisCard(diagnosis: diagnoses[index]),
     );
@@ -744,7 +747,7 @@ class _TimelineItem extends StatelessWidget {
                 Container(
                   width: 2,
                   height: isFirst ? 12 : null,
-                  color: isFirst ? Colors.transparent : color.withOpacity(0.3),
+                  color: isFirst ? Colors.transparent : color.withValues(alpha: 0.3),
                   constraints: isFirst
                       ? null
                       : const BoxConstraints(minHeight: 12),
@@ -753,7 +756,7 @@ class _TimelineItem extends StatelessWidget {
                   width: 28,
                   height: 28,
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, size: 14, color: color),
@@ -761,7 +764,7 @@ class _TimelineItem extends StatelessWidget {
                 Expanded(
                   child: Container(
                     width: 2,
-                    color: isLast ? Colors.transparent : color.withOpacity(0.3),
+                    color: isLast ? Colors.transparent : color.withValues(alpha: 0.3),
                   ),
                 ),
               ],
@@ -861,7 +864,7 @@ class _BottomActionBar extends StatelessWidget {
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),
@@ -974,7 +977,7 @@ class _OptionItem extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: color, size: 20),

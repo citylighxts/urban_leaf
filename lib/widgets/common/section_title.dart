@@ -23,12 +23,12 @@ class SectionTitle extends StatelessWidget {
         Expanded(
           child: Text(title, style: AppTextStyles.headingSmall),
         ),
-        if (trailing != null) trailing!,
-        if (actionLabel != null)
+        ?trailing,
+        if (actionLabel case final label?)
           GestureDetector(
             onTap: onAction,
             child: Text(
-              actionLabel!,
+              label,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../core/theme/app_colors.dart';
+//import '../../core/theme/app_colors.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -118,7 +118,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   const SizedBox(height: 8),
                   Text(
                     'Bergabunglah dengan Urban Leaf',
-                    style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
@@ -132,7 +132,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       labelText: 'Username',
                       labelStyle: const TextStyle(color: Colors.white60),
                       filled: true,
-                      fillColor: Colors.white.withOpacity(0.05),
+                      fillColor: Colors.white.withValues(alpha: 0.05),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
@@ -148,7 +148,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       labelText: 'Email',
                       labelStyle: const TextStyle(color: Colors.white60),
                       filled: true,
-                      fillColor: Colors.white.withOpacity(0.05),
+                      fillColor: Colors.white.withValues(alpha: 0.05),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
@@ -164,7 +164,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       labelText: 'Password',
                       labelStyle: const TextStyle(color: Colors.white60),
                       filled: true,
-                      fillColor: Colors.white.withOpacity(0.05),
+                      fillColor: Colors.white.withValues(alpha: 0.05),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       // 3. Tambahkan suffixIcon berupa tombol ikon mata
                       suffixIcon: IconButton(

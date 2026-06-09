@@ -40,8 +40,8 @@ class _MainNavigationState extends State<MainNavigation> {
             // AI Scanner — push as modal sheet for better UX
             Navigator.of(context).push(
               PageRouteBuilder(
-                pageBuilder: (_, __, ___) => const AiScannerPage(),
-                transitionsBuilder: (_, animation, __, child) {
+                pageBuilder: (_, _, _) => const AiScannerPage(),
+                transitionsBuilder: (_, animation, _, child) {
                   return SlideTransition(
                     position: Tween<Offset>(
                       begin: const Offset(0, 1),
@@ -80,7 +80,7 @@ class _UrbanLeafBottomNav extends StatelessWidget {
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),

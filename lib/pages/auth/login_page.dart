@@ -150,7 +150,7 @@ class _LoginPageState extends State<LoginPage> {
                       labelText: 'Email',
                       labelStyle: const TextStyle(color: Colors.white60),
                       filled: true,
-                      fillColor: Colors.white.withOpacity(0.05),
+                      fillColor: Colors.white.withValues(alpha: 0.05),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
@@ -166,7 +166,7 @@ class _LoginPageState extends State<LoginPage> {
                       labelText: 'Password',
                       labelStyle: const TextStyle(color: Colors.white60),
                       filled: true,
-                      fillColor: Colors.white.withOpacity(0.05),
+                      fillColor: Colors.white.withValues(alpha: 0.05),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       // 3. Tambahkan suffixIcon tombol mata interaktif
                       suffixIcon: IconButton(

@@ -212,8 +212,7 @@ class _HomePageState extends State<HomePage> {
                                         _markAlertHandled(alert.id),
                                   ),
                                 ),
-                              )
-                              .toList(),
+                              ),
                           if (activeAlerts.length > 3)
                             _ShowMoreButton(
                               label:
@@ -241,8 +240,7 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                 ),
-                              )
-                              .toList(),
+                              ),
                         ],
                         if (urgentPlants.isEmpty) ...[
                           const SizedBox(height: 24),
@@ -377,7 +375,7 @@ class _WeatherError extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.dangerLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -568,100 +566,6 @@ class _UrgentPlantCard extends StatelessWidget {
               size: 18,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-
-class _QuickActionsRow extends StatelessWidget {
-  const _QuickActionsRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionTitle(title: 'Aksi Cepat'),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _QuickAction(
-              emoji: '📷',
-              label: 'Scan Penyakit',
-              color: const Color(0xFFE8F4FD),
-              onTap: () {},
-            ),
-            const SizedBox(width: 10),
-            _QuickAction(
-              emoji: '💧',
-              label: 'Siram Tanaman',
-              color: const Color(0xFFEDF7ED),
-              onTap: () {},
-            ),
-            const SizedBox(width: 10),
-            _QuickAction(
-              emoji: '➕',
-              label: 'Tambah Tanaman',
-              color: const Color(0xFFF3EDF7),
-              onTap: () {},
-            ),
-            const SizedBox(width: 10),
-            _QuickAction(
-              emoji: '📊',
-              label: 'Lihat Laporan',
-              color: const Color(0xFFFFF8E1),
-              onTap: () {},
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  final String emoji;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickAction({
-    required this.emoji,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            children: [
-              Text(emoji, style: const TextStyle(fontSize: 22)),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
         ),
       ),
     );

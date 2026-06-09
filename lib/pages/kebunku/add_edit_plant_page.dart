@@ -457,12 +457,12 @@ class _MethodRadioTile extends StatelessWidget {
                 ],
               ),
             ),
-            Radio<GrowingMethod>(
-              value: method,
-              groupValue: isSelected ? method : null,
-              onChanged: (_) => onSelect(),
-              activeColor: AppColors.primary,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            Icon(
+              isSelected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: isSelected ? AppColors.primary : AppColors.textHint,
+              size: 20,
             ),
           ],
         ),
