@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
@@ -17,15 +18,29 @@ class WeatherService {
   static const _cacheTtl = Duration(minutes: 30);
   static const _cacheCollection = 'weather_cache';
 
+  static WeatherResult? _memCache;
+  static DateTime? _memCacheTime;
+
   /// Fetch current weather + 5-day forecast using device GPS.
-  /// Returns cached Firestore data if the location is within ~1 km and
-  /// the data is less than 30 minutes old; otherwise calls the API.
+  /// Returns in-memory result if still within TTL (avoids GPS on every call),
+  /// then falls back to Firestore cache, then the live API.
   Future<WeatherResult> fetchWeather() async {
+    if (_memCache != null &&
+        _memCacheTime != null &&
+        DateTime.now().difference(_memCacheTime!) < _cacheTtl) {
+      return _memCache!;
+    }
     final position = await _getPosition();
     final cached = await _readCache(position);
-    if (cached != null) return cached;
+    if (cached != null) {
+      _memCache = cached;
+      _memCacheTime = DateTime.now();
+      return cached;
+    }
     final location = await _reverseGeocode(position);
     final result = await _fetchFromApi(position, location);
+    _memCache = result;
+    _memCacheTime = DateTime.now();
     _writeCache(position, result);
     return result;
   }
@@ -87,18 +102,22 @@ class WeatherService {
       throw Exception('Izin lokasi diblokir permanen. Buka pengaturan HP.');
     }
 
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.low,
-        timeLimit: Duration(seconds: 10),
-      ),
-    );
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+        ),
+      ).timeout(const Duration(seconds: 10));
+    } on TimeoutException {
+      throw Exception('GPS timeout. Pastikan layanan lokasi aktif lalu coba lagi.');
+    }
   }
 
   Future<String> _reverseGeocode(Position pos) async {
     try {
-      final placemarks =
-          await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      final placemarks = await placemarkFromCoordinates(
+              pos.latitude, pos.longitude)
+          .timeout(const Duration(seconds: 5));
       if (placemarks.isNotEmpty) {
         final p = placemarks.first;
         final parts = [p.subLocality, p.locality]
@@ -136,7 +155,12 @@ class WeatherService {
       'forecast_days': '5',
     });
 
-    final response = await http.get(uri).timeout(const Duration(seconds: 15));
+    final http.Response response;
+    try {
+      response = await http.get(uri).timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      throw Exception('Koneksi ke server cuaca timeout. Periksa internet lalu coba lagi.');
+    }
     if (response.statusCode != 200) {
       throw Exception('Gagal mengambil data cuaca (${response.statusCode})');
     }

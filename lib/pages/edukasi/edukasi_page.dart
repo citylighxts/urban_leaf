@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/dummy_data.dart';
+import '../../core/services/weather_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/article_model.dart';
 import '../../models/plant_type_model.dart';
+import '../../models/weather_model.dart';
 import '../../pages/kebunku/add_edit_plant_page.dart';
 import '../../services/article_service.dart';
 import '../../services/plant_type_service.dart';
@@ -23,11 +24,14 @@ class _EdukasiPageState extends State<EdukasiPage>
   List<PlantTypeModel> _plantTypes = [];
   bool _plantTypesLoading = true;
 
+  WeatherModel? _weather;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadPlantTypes();
+    _loadWeather();
   }
 
   Future<void> _loadPlantTypes() async {
@@ -42,6 +46,13 @@ class _EdukasiPageState extends State<EdukasiPage>
     } catch (_) {
       if (mounted) setState(() => _plantTypesLoading = false);
     }
+  }
+
+  Future<void> _loadWeather() async {
+    try {
+      final result = await WeatherService().fetchWeather();
+      if (mounted) setState(() => _weather = result.current);
+    } catch (_) {}
   }
 
   @override
@@ -62,7 +73,7 @@ class _EdukasiPageState extends State<EdukasiPage>
             const _ArticlesTab(),
             _plantTypesLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _RecommendedPlantsTab(plantTypes: _plantTypes),
+                : _RecommendedPlantsTab(plantTypes: _plantTypes, weather: _weather),
             _plantTypesLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _CalendarTab(plantTypes: _plantTypes),
@@ -489,23 +500,24 @@ class _ArticleListCard extends StatelessWidget {
 
 class _RecommendedPlantsTab extends StatelessWidget {
   final List<PlantTypeModel> plantTypes;
-  const _RecommendedPlantsTab({required this.plantTypes});
+  final WeatherModel? weather;
+  const _RecommendedPlantsTab({required this.plantTypes, this.weather});
 
   @override
   Widget build(BuildContext context) {
-    final weather = DummyData.currentWeather;
-
     // Filter plant types whose tolerance range covers the current weather.
-    final recommended = plantTypes.where((p) =>
-        weather.temperature >= p.minTemp &&
-        weather.temperature <= p.maxTemp &&
-        weather.humidity >= p.minHumidity &&
-        weather.humidity <= p.maxHumidity).toList();
+    final recommended = weather == null
+        ? <PlantTypeModel>[]
+        : plantTypes.where((p) =>
+            weather!.temperature >= p.minTemp &&
+            weather!.temperature <= p.maxTemp &&
+            weather!.humidity >= p.minHumidity &&
+            weather!.humidity <= p.maxHumidity).toList();
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        _WeatherContextCard(weather: weather),
+        if (weather != null) _WeatherContextCard(weather: weather!),
         const SizedBox(height: 20),
         const SectionTitle(title: 'Cocok Ditanam Bulan Ini'),
         const SizedBox(height: 12),
@@ -534,7 +546,7 @@ class _RecommendedPlantsTab extends StatelessWidget {
 }
 
 class _WeatherContextCard extends StatelessWidget {
-  final dynamic weather;
+  final WeatherModel weather;
   const _WeatherContextCard({required this.weather});
 
   @override
