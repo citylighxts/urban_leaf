@@ -22,3 +22,22 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+subprojects {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            // Mengambil versi Java target dari task JavaCompile pada masing-masing sub-proyek secara dinamis
+            val javaCompileTask = project.tasks.withType<JavaCompile>().firstOrNull()
+            if (javaCompileTask != null) {
+                val targetVersion = javaCompileTask.targetCompatibility
+                if (targetVersion == "11" || targetVersion == "1.11") {
+                    jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+                } else if (targetVersion == "17" || targetVersion == "1.17") {
+                    jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+                }
+            } else {
+                // Fallback default jika tidak terdeteksi
+                jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+            }
+        }
+    }
+}

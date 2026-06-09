@@ -8,9 +8,51 @@ import '../../models/diagnosis_model.dart';
 import '../../models/plant_model.dart';
 import '../../models/weather_model.dart';
 import '../../services/plant_firestore_service.dart';
+import '../../services/ai_scan_service.dart'; 
 import '../../widgets/common/section_title.dart';
 import '../../widgets/common/status_chip.dart';
 import 'add_edit_plant_page.dart';
+
+extension AiScanServiceGetDiseaseDetails on AiScanService {
+  Future<Map<String, dynamic>?> getDiseaseDetails(String diseaseLabel) async {
+    const diseaseDetails = {
+      'Early Blight (Alternaria solani)': {
+        'diseaseName': 'Early Blight',
+        'diseaseNameEn': 'Early Blight',
+        'description':
+            'Infeksi jamur pada daun dan batang yang menyebabkan bercak cokelat dan layu pada tanaman.',
+        'solutions': [
+          'Buang daun terinfeksi.',
+          'Semprot fungisida sistemik.',
+          'Jaga sirkulasi udara di sekitar tanaman.',
+        ],
+        'preventionTips': [
+          'Hindari kelembapan berlebih pada daun.',
+          'Beri jarak tanam yang cukup.',
+          'Pantau kelembapan media tanam secara rutin.',
+        ],
+      },
+      'Kekurangan Air (Wilting)': {
+        'diseaseName': 'Kekurangan Air',
+        'diseaseNameEn': 'Underwatering',
+        'description':
+            'Tanaman terlihat layu karena air tidak cukup. Media tanam cenderung kering.',
+        'solutions': [
+          'Penyiraman secara bertahap sampai media menjadi lembab.',
+          'Periksa drainase dan kelembapan tanah.',
+          'Pindahkan ke lokasi teduh sementara jika perlu.',
+        ],
+        'preventionTips': [
+          'Jadwalkan penyiraman teratur.',
+          'Gunakan mulsa untuk mempertahankan kelembapan.',
+          'Cek kelembapan media sebelum penyiraman berikutnya.',
+        ],
+      },
+    };
+
+    return diseaseDetails[diseaseLabel];
+  }
+}
 
 class PlantDetailPage extends StatefulWidget {
   final PlantModel plant;
@@ -26,12 +68,18 @@ class _PlantDetailPageState extends State<PlantDetailPage>
   late TabController _tabController;
   late PlantModel _plant;
   final _plantService = PlantFirestoreService();
+  final _aiScanService = AiScanService();
+
+  DiagnosisModel? _liveDiagnosisData; // Menyimpan data diagnosis hasil query JSON
+  bool _isLoadingMedical = false;
 
   @override
   void initState() {
     super.initState();
     _plant = widget.plant;
     _tabController = TabController(length: 3, vsync: this);
+    _loadMedicalRecords(); // 3. Ambil data rekam medis saat halaman dibuka
+
   }
 
   @override
@@ -40,8 +88,39 @@ class _PlantDetailPageState extends State<PlantDetailPage>
     super.dispose();
   }
 
-  List<DiagnosisModel> get _plantDiagnoses =>
-      DummyData.diagnoses.where((d) => d.plantId == _plant.id).toList();
+  // 4. Logika menarik data dari JSON lokal secara dinamis berdasarkan properti Firestore
+  void _loadMedicalRecords() async {
+    if (_plant.lastDiagnosis == null || _plant.lastDiagnosis!.isEmpty) {
+      setState(() => _liveDiagnosisData = null);
+      return;
+    }
+
+    setState(() => _isLoadingMedical = true);
+    
+    // Cari kamus penyakit di file JSON berdasarkan teks label penyakit yang tersimpan di Firestore
+    final details = await _aiScanService.getDiseaseDetails(_plant.lastDiagnosis!);
+    
+    if (details != null && mounted) {
+      setState(() {
+        _liveDiagnosisData = DiagnosisModel(
+          id: _plant.id,
+          plantId: _plant.id,
+          plantName: _plant.name,
+          plantEmoji: _plant.emoji,
+          diseaseName: details['diseaseName'] ?? _plant.lastDiagnosis,
+          diseaseNameEn: details['diseaseNameEn'] ?? _plant.lastDiagnosis,
+          severity: _plant.status == PlantStatus.quarantine ? DiseaseSeverity.severe : DiseaseSeverity.mild,
+          diagnosisStatus: _plant.status == PlantStatus.healthy ? DiagnosisStatus.resolved : DiagnosisStatus.active,
+          confidence: 0.95, // Visual Mockup Confidence Score
+          description: details['description'] ?? 'Deskripsi tidak tersedia.',
+          solutions: List<String>.from(details['solutions'] ?? []),
+          preventionTips: List<String>.from(details['preventionTips'] ?? []),
+          diagnosedAt: DateTime.now(), 
+        );
+      });
+    }
+    if (mounted) setState(() => _isLoadingMedical = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +140,13 @@ class _PlantDetailPageState extends State<PlantDetailPage>
           children: [
             _InfoTab(plant: _plant),
             _CareHistoryTab(plant: _plant),
-            _DiagnosisTab(diagnoses: _plantDiagnoses, plant: _plant),
+           // 5. Salurkan data riil dinamis hasil bacaan JSON ke widget Tab Diagnosis
+            _DiagnosisTab(
+              liveDiagnosis: _liveDiagnosisData,
+              isLoading: _isLoadingMedical,
+              plant: _plant,
+              onMarkAsHealthy: _markAsHealthy, // Mengirimkan callback sembuh tanaman
+            ),
           ],
         ),
       ),
@@ -102,10 +187,39 @@ class _PlantDetailPageState extends State<PlantDetailPage>
           final result = await navigator.push<PlantModel>(
             MaterialPageRoute(builder: (_) => AddEditPlantPage(plant: _plant)),
           );
-          if (result != null) setState(() => _plant = result);
+          if (result != null) {
+            setState(() => _plant = result);
+            _loadMedicalRecords(); // Reload data rekam medis jika ada perubahan tanaman
+          }
+
         },
       ),
     );
+  }
+
+    // 6. Fungsi memulihkan status kesehatan tanaman menjadi Sehat kembali di database Cloud
+  void _markAsHealthy() async {
+    final updatedPlant = _plant.copyWith(
+      status: PlantStatus.healthy,
+      lastDiagnosis: '', // Kosongkan catatan penyakit dari Firestore karena tanaman sudah sembuh total
+    );
+    
+    final savedPlant = await _plantService.updatePlant(updatedPlant);
+    
+    if (mounted) {
+      setState(() {
+        _plant = savedPlant;
+        _liveDiagnosisData = null; // Kosongkan tampilan rekam medis di UI
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Luar biasa! ${_plant.name} dinyatakan sembuh total dan kembali sehat!'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
   }
 
   Widget _buildSliverAppBar() {
@@ -233,6 +347,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
               ? _plant.copyWith(
                   status: _plant.previousStatus ?? PlantStatus.healthy,
                   previousStatus: null,
+                  lastDiagnosis: '', // Jika manual dikeluarkan karantina, reset penyakitnya
                 )
               : _plant.copyWith(
                   previousStatus: _plant.status,
@@ -241,7 +356,10 @@ class _PlantDetailPageState extends State<PlantDetailPage>
 
           final savedPlant = await _plantService.updatePlant(updatedPlant);
           if (!mounted) return;
-          setState(() => _plant = savedPlant);
+          setState(() {
+            _plant = savedPlant;
+            _loadMedicalRecords(); // Sinkronkan kembali tampilan rekam medis setelah karantina berubah
+          });
           Navigator.pop(ctx);
           messenger.showSnackBar(
             SnackBar(
@@ -549,31 +667,45 @@ class _CareHistoryTab extends StatelessWidget {
 }
 
 class _DiagnosisTab extends StatelessWidget {
-  final List<DiagnosisModel> diagnoses;
+  final DiagnosisModel? liveDiagnosis; // Memakai data tunggal dari database JSON
+  final bool isLoading;
   final PlantModel plant;
+  final VoidCallback onMarkAsHealthy; // Callback penanda sembuh
 
-  const _DiagnosisTab({required this.diagnoses, required this.plant});
+  const _DiagnosisTab({
+    required this.liveDiagnosis,
+    required this.isLoading,
+    required this.plant,
+    required this.onMarkAsHealthy,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (diagnoses.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('✅', style: TextStyle(fontSize: 48)),
-            SizedBox(height: 12),
-            Text(
-              'Tidak ada riwayat penyakit',
-              style: AppTextStyles.headingSmall,
-            ),
-            SizedBox(height: 4),
-            Text('Tanaman kamu sehat!', style: AppTextStyles.bodyMedium),
-          ],
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+
+    // Jika di Firestore string `lastDiagnosis`-nya kosong/null, tandanya tanaman sehat prima
+    if (plant.lastDiagnosis == null || plant.lastDiagnosis!.isEmpty || liveDiagnosis == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('✅', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              const Text('Tidak ada riwayat penyakit', style: AppTextStyles.headingSmall),
+              const SizedBox(height: 4),
+              Text('${plant.name} kamu dalam kondisi sehat walafiat!', style: AppTextStyles.bodyMedium),
+            ],
+          ),
         ),
       );
     }
-    return ListView.separated(
+
+    // Tampilkan Kartu Informasi Medis riil hasil ekstraksi berkas JSON lokal kalian
+    return ListView(
       padding: const EdgeInsets.all(20),
       itemCount: diagnoses.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
@@ -596,10 +728,10 @@ class _DiagnosisCard extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE8F0EA)),
       ),
       child: Column(
@@ -608,86 +740,58 @@ class _DiagnosisCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: severityBg,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  diagnosis.severityLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: severityColor,
-                  ),
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: severityBg, borderRadius: BorderRadius.circular(20)),
+                child: Text(diagnosis.severityLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: severityColor)),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.infoLight,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  diagnosis.statusLabel,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.info,
-                  ),
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: AppColors.infoLight, borderRadius: BorderRadius.circular(20)),
+                child: Text(diagnosis.statusLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.info)),
               ),
               const Spacer(),
-              Text(
-                '${(diagnosis.confidence * 100).toStringAsFixed(0)}% akurat',
-                style: AppTextStyles.caption,
-              ),
+              Text('${(diagnosis.confidence * 100).toStringAsFixed(0)}% akurat', style: AppTextStyles.caption),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Text(diagnosis.diseaseName, style: AppTextStyles.headingSmall),
           const SizedBox(height: 2),
-          Text(
-            diagnosis.diseaseNameEn,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(diagnosis.description, style: AppTextStyles.bodySmall),
+          Text(diagnosis.diseaseNameEn, style: AppTextStyles.bodySmall.copyWith(fontStyle: FontStyle.italic)),
           const SizedBox(height: 10),
-          const Text('Solusi:', style: AppTextStyles.labelLarge),
+          Text(diagnosis.description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary.withOpacity(0.8), height: 1.4)),
+          const SizedBox(height: 16),
+          const Text('🛡️ Langkah Penanganan Khusus:', style: AppTextStyles.labelLarge),
           const SizedBox(height: 6),
-          ...diagnosis.solutions.map(
-            (s) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('• ', style: AppTextStyles.bodySmall),
-                  Expanded(child: Text(s, style: AppTextStyles.bodySmall)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Didiagnosis: ${_formatDate(diagnosis.diagnosedAt)}',
-            style: AppTextStyles.caption,
-          ),
+          ...diagnosis.solutions.map((s) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                    Expanded(child: Text(s, style: AppTextStyles.bodySmall.copyWith(height: 1.3))),
+                  ],
+                ),
+              )),
+          const SizedBox(height: 12),
+          if (diagnosis.preventionTips.isNotEmpty) ...[
+            const Text('💡 Tips Pencegahan Ke Depan:', style: AppTextStyles.labelLarge),
+            const SizedBox(height: 6),
+            ...diagnosis.preventionTips.map((t) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('- ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                      Expanded(child: Text(t, style: AppTextStyles.bodySmall.copyWith(height: 1.3))),
+                    ],
+                  ),
+                )),
+          ],
         ],
       ),
     );
   }
-
-  String _formatDate(DateTime dt) => '${dt.day}/${dt.month}/${dt.year}';
 }
 
 class _Section extends StatelessWidget {

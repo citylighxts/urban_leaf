@@ -1,0 +1,496 @@
+{
+  "apple apple scab": {
+    "diseaseName": "Kudis Apel (Apple Scab)",
+    "diseaseNameEn": "Apple Apple Scab",
+    "description": "Disebabkan oleh jamur Venturia inaequalis. Menimbulkan bercak kecokelatan mirip beludru pada daun yang lambat laun mengering dan mengerut.",
+    "solutions": [
+      "Pangkas dan hancurkan bagian daun atau buah yang bergejala.",
+      "Semprotkan fungisida organik berbahan dasar tembaga pada fase awal infeksi."
+    ],
+    "preventionTips": [
+      "Bersihkan sisa-sisa daun gugur di bawah pohon menjelang musim hujan.",
+      "Lakukan pemangkasan rutin agar sirkulasi udara di dalam kanopi pohon tetap optimal."
+    ]
+  },
+  "apple black rot": {
+    "diseaseName": "Busuk Hitam Apel (Black Rot)",
+    "diseaseNameEn": "Apple Black Rot",
+    "description": "Disebabkan oleh jamur Botryosphaeria obtusa. Menyebabkan bercak melingkar berwarna cokelat kemerahan pada daun (bercak mata kodok) dan pembusukan gelap pada buah.",
+    "solutions": [
+      "Potong ranting atau cabang yang mati atau mengalami kanker kayu.",
+      "Aplikasikan fungisida pelindung yang sesuai secara berkala."
+    ],
+    "preventionTips": [
+      "Singkirkan sisa buah busuk mumi yang masih menggantung di pohon.",
+      "Kendalikan hama perusak kulit kayu yang bisa menjadi celah masuknya jamur."
+    ]
+  },
+  "apple cedar apple rust": {
+    "diseaseName": "Karat Daun Cedar-Apel",
+    "diseaseNameEn": "Apple Cedar Apple Rust",
+    "description": "Penyakit kompleks akibat jamur Gymnosporangium juniperi-virginianae yang membutuhkan dua inang. Menghasilkan bercak jingga mencolok di permukaan atas daun.",
+    "solutions": [
+      "Petik daun yang terinfeksi parah agar tidak membentuk spora matang.",
+      "Semprotkan fungisida preventif secara berkala pada awal musim semi."
+    ],
+    "preventionTips": [
+      "Hindari menanam pohon apel berdekatan dengan tanaman juniper/cedar.",
+      "Gunakan varietas apel yang memiliki ketahanan alami terhadap karat daun."
+    ]
+  },
+  "apple healthy": {
+    "diseaseName": "Apel Sehat",
+    "diseaseNameEn": "Apple Healthy",
+    "description": "Daun tanaman apel berada dalam kondisi prima, permukaan bersih, sirkulasi klorofil optimal, dan bebas dari tanda serangan patogen.",
+    "solutions": [
+      "Pertahankan regimen penyiraman dan pemupukan berkala."
+    ],
+    "preventionTips": [
+      "Lakukan inspeksi visual mandiri pada sela-sela daun seminggu sekali.",
+      "Berikan nutrisi mikro secara seimbang untuk menjaga imunitas sel tanaman."
+    ]
+  },
+  "blueberry healthy": {
+    "diseaseName": "Blueberry Sehat",
+    "diseaseNameEn": "Blueberry Healthy",
+    "description": "Daun blueberry tampak hijau segar, kokoh, dan menunjukkan pertumbuhan vegetatif yang sehat.",
+    "solutions": [
+      "Pertahankan kelembapan media tanam tanpa membuatnya becek."
+    ],
+    "preventionTips": [
+      "Jaga tingkat keasaman (pH) tanah agar tetap ideal bagi blueberry (pH 4.5-5.5).",
+      "Gunakan mulsa organik untuk menjaga kelembapan akar."
+    ]
+  },
+  "cherry including sour powdery mildew": {
+    "diseaseName": "Embun Tepung Ceri (Powdery Mildew)",
+    "diseaseNameEn": "Cherry Powdery Mildew",
+    "description": "Serangan jamur Podosphaera clandestina yang melapisi permukaan daun muda dengan lapisan putih keabu-abuan menyerupai bedak tebal.",
+    "solutions": [
+      "Pangkas tunas-tunas air bagian bawah yang tertutup lapisan putih.",
+      "Gunakan semprotan fungisida sistemik atau sulfur organik."
+    ],
+    "preventionTips": [
+      "Pastikan tanaman mendapatkan sinar matahari pagi yang cukup.",
+      "Jangan menyiram air langsung di atas tajuk daun pada sore hari."
+    ]
+  },
+  "cherry including sour healthy": {
+    "diseaseName": "Ceri Sehat",
+    "diseaseNameEn": "Cherry Healthy",
+    "description": "Daun tanaman ceri terbebas dari hama maupun jamur embun, tekstur daun normal dan asimilasi harian berjalan baik.",
+    "solutions": [
+      "Lanjutkan perawatan rutin harian Anda."
+    ],
+    "preventionTips": [
+      "Lakukan pemangkasan cabang mati secara periodik.",
+      "Pastikan kecukupan unsur hara makro (NPK) terpenuhi."
+    ]
+  },
+  "corn maize cercospora leaf spot gray leaf spot": {
+    "diseaseName": "Bercak Daun Kelabu Jagung",
+    "diseaseNameEn": "Corn Gray Leaf Spot",
+    "description": "Disebabkan oleh jamur Cercospora zeae-maydis. Menghasilkan bercak memanjang berbentuk persegi panjang berwarna abu-abu kecokelatan di sela urat daun.",
+    "solutions": [
+      "Segera hancurkan sisa tanaman yang terinfeksi setelah panen.",
+      "Gunakan fungisida berbahan aktif triazol jika infeksi meluas pada fase vegetatif."
+    ],
+    "preventionTips": [
+      "Terapkan sistem rotasi tanaman (jangan menanam jagung berturut-turut).",
+      "Gunakan pengolahan tanah yang baik untuk membenamkan sisa spora jamur."
+    ]
+  },
+  "corn maize common rust": {
+    "diseaseName": "Karat Daun Umum Jagung",
+    "diseaseNameEn": "Corn Common Rust",
+    "description": "Disebabkan jamur Puccinia sorghi. Membentuk bisul kecil (pustul) menonjol berwarna cokelat kemerahan bertepung di kedua permukaan daun jagung.",
+    "solutions": [
+      "Isolasi atau pangkas daun bagian bawah jika bisul karat baru muncul.",
+      "Semprotkan fungisida berbahan aktif mankozeb sesuai anjuran."
+    ],
+    "preventionTips": [
+      "Gunakan benih jagung hibrida yang tahan penyakit karat daun.",
+      "Atur jarak tanam agar lahan jagung tidak terlalu lembap."
+    ]
+  },
+  "corn maize northern leaf blight": {
+    "diseaseName": "Hawar Daun Utara Jagung",
+    "diseaseNameEn": "Corn Northern Leaf Blight",
+    "description": "Serangan jamur Exserohilum turcicum. Ditandai dengan bercak besar berbentuk lonjong menyerupai perahu atau cerutu berwarna abu-abu kehijauan kering.",
+    "solutions": [
+      "Lakukan sanitasi lahan dengan membersihkan sisa daun kering.",
+      "Aplikasikan fungisida foliar jika gejala muncul sebelum fase pembungaan."
+    ],
+    "preventionTips": [
+      "Lakukan rotasi tanaman dengan komoditas non-rumput (misal kacang-kacangan).",
+      "Pilih benih bersertifikat bebas penyakit."
+    ]
+  },
+  "corn maize healthy": {
+    "diseaseName": "Jagung Sehat",
+    "diseaseNameEn": "Corn Healthy",
+    "description": "Tanaman jagung menunjukkan performa daun yang optimal, tegak, berwarna hijau tua rata, dan fotosintesis berjalan sempurna.",
+    "solutions": [
+      "Jaga suplai pengairan terutama pada fase pengisian tongkol."
+    ],
+    "preventionTips": [
+      "Berikan pemupukan urea/nitrogen secara presisi sesuai umur tanaman.",
+      "Pantau kebersihan parit pengairan lahan."
+    ]
+  },
+  "grape black rot": {
+    "diseaseName": "Busuk Hitam Anggur (Black Rot)",
+    "diseaseNameEn": "Grape Black Rot",
+    "description": "Disebabkan oleh Guignardia bidwellii. Menimbulkan bercak bundar cokelat kemerahan kecil pada daun dan membuat buah anggur mengerut hitam seperti kismis busuk.",
+    "solutions": [
+      "Buang buah anggur yang mengering dan mengeras dari rambatan.",
+      "Semprotkan fungisida pelindung tembaga sebelum periode hujan lebat."
+    ],
+    "preventionTips": [
+      "Lakukan penjarangan daun rambat agar sirkulasi udara di area buah terjaga.",
+      "Bersihkan area bawah parah-parah anggur dari sampah organik."
+    ]
+  },
+  "grape esca black measles": {
+    "diseaseName": "Penyakit Esca Anggur (Black Measles)",
+    "diseaseNameEn": "Grape Esca Black Measles",
+    "description": "Penyakit kompleks yang menyerang jaringan kayu dalam anggur. Menyebabkan pola belang macan (interveinal chlorosis) mengering pada daun.",
+    "solutions": [
+      "Pangkas cabang yang menunjukkan gejala kayu membusuk dari dalam.",
+      "Oleskan pasta pelindung luka pada batang anggur setelah pemangkasan pruning."
+    ],
+    "preventionTips": [
+      "Hindari melakukan pemangkasan besar saat cuaca hujan atau sangat lembap.",
+      "Desinfeksi alat gunting pangkas menggunakan alkohol secara berkala."
+    ]
+  },
+  "grape leaf blight isariopsis leaf spot": {
+    "diseaseName": "Hawar Daun Isariopsis Anggur",
+    "diseaseNameEn": "Grape Isariopsis Leaf Spot",
+    "description": "Disebabkan oleh Pseudocercospora vitis. Menghasilkan bercak bersudut cokelat tua berkelompok banyak yang membuat daun anggur rontok sebelum waktunya.",
+    "solutions": [
+      "Kumpulkan daun-daun rontok di bawah rambatan lalu musnahkan.",
+      "Gunakan fungisida kontak untuk menekan persebaran spora."
+    ],
+    "preventionTips": [
+      "Atur ketinggian parah-parah anggur agar daun mendapatkan sinar matahari penuh.",
+      "Lakukan pemupukan kalium seimbang untuk memperkuat dinding sel daun."
+    ]
+  },
+  "grape healthy": {
+    "diseaseName": "Anggur Sehat",
+    "diseaseNameEn": "Grape Healthy",
+    "description": "Daun rambat anggur bersih, pertumbuhan tunas aktif berjalan normal, dan kesuburan daun terjaga dengan baik.",
+    "solutions": [
+      "Pertahankan jadwal pemangkasan rutin dan pemberian pupuk vegetatif/generatif."
+    ],
+    "preventionTips": [
+      "Gunakan atap plastik UV jika menanam anggur di daerah bercurah hujan tinggi.",
+      "Pantau kadar air media tanam agar tidak menggenang."
+    ]
+  },
+  "orange haunglongbing citrus greening": {
+    "diseaseName": "Citrus Greening (CVPD / HLB)",
+    "diseaseNameEn": "Orange Huanglongbing",
+    "description": "Disebabkan oleh bakteri Candidatus Liberibacter yang disebarkan oleh kutu loncat jeruk. Menyebabkan daun menguning asimetris (mottling) dan kerdil.",
+    "solutions": [
+      "Cabut dan musnahkan pohon yang terkonfirmasi HLB karena belum ada obat penyembuhnya.",
+      "Kendalikan vektor kutu loncat jeruk menggunakan insektisida organik atau musuh alami."
+    ],
+    "preventionTips": [
+      "Gunakan bibit jeruk bersertifikat bebas penyakit dari karantina tepercaya.",
+      "Lakukan karantina ketat jika memasukkan tanaman baru ke area kebun."
+    ]
+  },
+  "peach bacterial spot": {
+    "diseaseName": "Bercak Bakteri Persik (Peach)",
+    "diseaseNameEn": "Peach Bacterial Spot",
+    "description": "Disebabkan oleh bakteri Xanthomonas arboricola. Membuat bercak basah kecil gelap pada daun yang kemudian bolong-bolong seperti bekas tembakan peluru.",
+    "solutions": [
+      "Pangkas ranting yang menunjukkan gejala kanker luka kulit kayu.",
+      "Semprotkan senyawa bakterisida berbasis tembaga pada fase dorman tanaman."
+    ],
+    "preventionTips": [
+      "Hindari penggunaan sistem pengairan semprot dari atas kepala tanaman (overhead irrigation).",
+      "Pilih varietas tanaman persik yang memiliki resistensi genetik tinggi."
+    ]
+  },
+  "peach healthy": {
+    "diseaseName": "Persik Sehat",
+    "diseaseNameEn": "Peach Healthy",
+    "description": "Daun persik tampak mulus memanjang hijau, tidak bolong-bolong, dan metabolisme internal pohon berfungsi optimal.",
+    "solutions": [
+      "Lanjutkan pola perawatan mikronutrien tanaman Anda."
+    ],
+    "preventionTips": [
+      "Jaga kebersihan alat kebun agar bakteri patogen dari luar tidak menular.",
+      "Berikan pupuk kompos matang di sekitar perakaran."
+    ]
+  },
+  "pepper bell bacterial spot": {
+    "diseaseName": "Bercak Bakteri Cabai Paprika",
+    "diseaseNameEn": "Pepper Bell Bacterial Spot",
+    "description": "Disebabkan oleh bakteri Xanthomonas. Menimbulkan bintik-bintik kecil menonjol gelap melingkar pada daun paprika yang memicu daun menguning dan rontok.",
+    "solutions": [
+      "Segera petik daun terbawah yang menunjukkan gejala bintik hitam.",
+      "Aplikasikan semprotan bakterisida tembaga oktanoat secara merata."
+    ],
+    "preventionTips": [
+      "Jangan merawat tanaman saat daun masih basah oleh embun pagi untuk mencegah penularan lewat tangan.",
+      "Gunakan sistem mulsa plastik untuk mencegah percikan air tanah ke daun."
+    ]
+  },
+  "pepper bell healthy": {
+    "diseaseName": "Cabai Paprika Sehat",
+    "diseaseNameEn": "Pepper Bell Healthy",
+    "description": "Daun tanaman cabai paprika tumbuh tebal, hijau rata, tidak keriting, bebas hama thrips/kutu daun, dan sehat sempurna.",
+    "solutions": [
+      "Jaga stabilitas penyiraman harian (pagi hari)."
+    ],
+    "preventionTips": [
+      "Berikan kalsium tambahan untuk mencegah pembusukan ujung buah nantinya.",
+      "Pasang perangkap kuning (yellow trap) di dekat tanaman untuk memantau hama terbang."
+    ]
+  },
+  "potato early blight": {
+    "diseaseName": "Bercak Kering Kentang (Early Blight)",
+    "diseaseNameEn": "Potato Early Blight",
+    "description": "Disebabkan oleh jamur Alternaria solani. Ditandai dengan bercak lingkaran gelap konsentris (pola cincin) pada daun-daun tua kentang.",
+    "solutions": [
+      "Pangkas daun tua yang menempel atau dekat dengan permukaan tanah.",
+      "Gunakan fungisida protektif berbahan aktif klorotalonil atau mankozeb."
+    ],
+    "preventionTips": [
+      "Lakukan rotasi tanaman dengan tanaman non-Solanaceae (bukan tomat/cabai).",
+      "Pastikan kecukupan hara tanaman agar kentang tidak stres menjelang pembentukan umbi."
+    ]
+  },
+  "potato late blight": {
+    "diseaseName": "Hawar Daun Kentang (Late Blight)",
+    "diseaseNameEn": "Potato Late Blight",
+    "description": "Penyakit mematikan akibat oomycete Phytophthora infestans. Bercak basah hijau kelabu membesar cepat di ujung daun, disusul lapisan kapang putih di bawahnya saat lembap.",
+    "solutions": [
+      "Segera cabut dan buang seluruh tanaman jika infeksi sudah mengganas di satu area.",
+      "Semprotkan fungisida sistemik khusus Phytophthora secepat mungkin."
+    ],
+    "preventionTips": [
+      "Hindari menanam kentang di musim penghujan dengan kelembapan ekstrem tanpa pelindung.",
+      "Gunakan umbi bibit yang bersertifikat resmi bebas penyakit."
+    ]
+  },
+  "potato healthy": {
+    "diseaseName": "Kentang Sehat",
+    "diseaseNameEn": "Potato Healthy",
+    "description": "Daun kentang rimbun, tegap, tidak menunjukkan tanda-tanda busuk hawar ataupun bercak cincin, siap melakukan pembentukan umbi bawah tanah.",
+    "solutions": [
+      "Lakukan pembumbunan tanah (menimbun pangkal batang) agar umbi berkembang baik."
+    ],
+    "preventionTips": [
+      "Pantau drainase parit guludan tanah agar tidak menggenang air.",
+      "Gunakan pupuk organik cair secara berkala."
+    ]
+  },
+  "raspberry healthy": {
+    "diseaseName": "Raspberry Sehat",
+    "diseaseNameEn": "Raspberry Healthy",
+    "description": "Tanaman raspberry berada dalam status kesehatan prima, struktur daun normal tanpa serangan karat atau tungau.",
+    "solutions": [
+      "Lakukan penalian atau ajir penyangga batang agar tegak."
+    ],
+    "preventionTips": [
+      "Pangkas batang yang sudah selesai berbuah tua agar merangsang tunas baru.",
+      "Berikan mulsa organik tebal di atas media tanam."
+    ]
+  },
+  "soybean healthy": {
+    "diseaseName": "Kedelai Sehat",
+    "diseaseNameEn": "Soybean Healthy",
+    "description": "Daun kedelai berwarna hijau bersih merata, tidak compang-camping akibat ulat grayak, dan pertumbuhan bintil akar penyerap nitrogen berjalan baik.",
+    "solutions": [
+      "Jaga kebersihan gulma liar di sela-sela bedengan kedelai."
+    ],
+    "preventionTips": [
+      "Lakukan monitoring kehadiran hama ulat pada permukaan bawah daun.",
+      "Pastikan kebutuhan air tercukupi saat fase pengisian polong."
+    ]
+  },
+  "squash powdery mildew": {
+    "diseaseName": "Embun Tepung Labu (Powdery Mildew)",
+    "diseaseNameEn": "Squash Powdery Mildew",
+    "description": "Disebabkan oleh jamur Podosphaera. Seluruh permukaan daun tanaman labu diselimuti kapang putih melingkar seperti taburan bedak talek, mengganggu proses fotosintesis.",
+    "solutions": [
+      "Semprotkan campuran baking soda + sabun cair hortikultura encer sebagai obat alternatif alami.",
+      "Gunakan fungisida berbahan dasar belerang (sulfur)."
+    ],
+    "preventionTips": [
+      "Berikan penjarangan daun tua agar udara mengalir bebas di sela rumpun labu.",
+      "Tanam di lokasi yang mendapatkan paparan sinar matahari penuh minimal 6-8 jam."
+    ]
+  },
+  "strawberry leaf scorch": {
+    "diseaseName": "Hawar Hangus Stroberi (Leaf Scorch)",
+    "diseaseNameEn": "Strawberry Leaf Scorch",
+    "description": "Disebabkan oleh jamur Diplocarpon earlianum. Menyebabkan bercak ungu gelap tak beraturan meluas hingga daun stroberi tampak gosong/hangus terbakar.",
+    "solutions": [
+      "Petik dan singkirkan daun stroberi yang hangus mengering.",
+      "Semprotkan fungisida pelindung kontak pada awal pertumbuhan daun baru."
+    ],
+    "preventionTips": [
+      "Lakukan peremajaan tanaman stroberi secara berkala.",
+      "Siram air langsung ke media tanam menggunakan sistem irigasi tetes."
+    ]
+  },
+  "strawberry healthy": {
+    "diseaseName": "Stroberi Sehat",
+    "diseaseNameEn": "Strawberry Healthy",
+    "description": "Daun stroberi berbentuk gerigi sempurna hijau tua cerah, kokoh, dan siap menyalurkan karbohidrat untuk pembentukan buah merah yang manis.",
+    "solutions": [
+      "Berikan pupuk tinggi kalium dan fosfor menjelang fase berbuah."
+    ],
+    "preventionTips": [
+      "Alasi buah stroberi dengan sekam kering atau mulsa agar tidak bersentuhan langsung dengan tanah basah.",
+      "Buang sulur (runner) jika ingin fokus memperbesar ukuran tanaman induk."
+    ]
+  },
+  "tomato bacterial spot": {
+    "diseaseName": "Bercak Bakteri Tomat",
+    "diseaseNameEn": "Tomato Bacterial Spot",
+    "description": "Disebabkan oleh bakteri Xanthomonas perforans. Membentuk bintik hitam kecil berminyak tak beraturan pada daun tomat, sering kali dikelilingi lingkaran kuning.",
+    "solutions": [
+      "Karantina pot tomat jauh dari tanaman solanaceae lainnya.",
+      "Semprotkan bakterisida tembaga hidroksida pada sore hari."
+    ],
+    "preventionTips": [
+      "Jangan pernah melakukan penyiraman daun tomat di malam hari.",
+      "Pastikan benih tomat yang disemai terbebas dari kontaminasi bakteri luar."
+    ]
+  },
+  "tomato early blight": {
+    "diseaseName": "Bercak Kering Tomat (Early Blight)",
+    "diseaseNameEn": "Tomato Early Blight",
+    "description": "Disebabkan oleh jamur Alternaria solani. Menyerang daun bagian bawah terlebih dahulu dengan pola bercak cokelat bergelang-gelang konsentris mirip papan target panahan.",
+    "solutions": [
+      "Rembes (pangkas) seluruh daun tomat terbawah hingga ketinggian 30 cm dari tanah.",
+      "Aplikasikan fungisida berbahan aktif mankozeb atau tembaga organik."
+    ],
+    "preventionTips": [
+      "Gunakan mulsa jerami atau plastik untuk menutupi tanah agar spora jamur tidak memercik ke atas saat hujan.",
+      "Berikan jarak tanam yang longgar antar pohon tomat."
+    ]
+  },
+  "tomato late blight": {
+    "diseaseName": "Hawar Busuk Tomat (Late Blight)",
+    "diseaseNameEn": "Tomato Late Blight",
+    "description": "Serangan mematikan Phytophthora infestans. Bercak basah besar cokelat tua menyebar super cepat di daun, batang menjadi busuk hitam, dan tanaman bisa layu total dalam hitungan hari.",
+    "solutions": [
+      "Isolasi instan dan bakar tanaman jika area batang utama sudah membusuk hitam.",
+      "Semprotkan fungisida sistemik berbahan aktif metalaksil atau dimetomorf."
+    ],
+    "preventionTips": [
+      "Hindari menanam tomat berdekatan dengan kebun kentang.",
+      "Gunakan naungan pelindung hujan (greenhouse mini/atap plastik) saat cuaca ekstrem."
+    ]
+  },
+  "tomato leaf mold": {
+    "diseaseName": "Kapang Daun Tomat (Leaf Mold)",
+    "diseaseNameEn": "Tomato Leaf Mold",
+    "description": "Disebabkan jamur Passalora fulva. Muncul warna hijau pucat kekuningan di permukaan atas daun, sementara bagian bawah daun ditumbuhi kapang beludru abu-abu keunguan.",
+    "solutions": [
+      "Tingkatkan ventilasi aliran udara di dalam kebun/greenhouse.",
+      "Semprotkan fungisida pelindung daun secara merata hingga ke bagian bawah daun."
+    ],
+    "preventionTips": [
+      "Jaga tingkat kelembapan udara agar tidak terlalu jenuh (di bawah 85%).",
+      "Pangkas daun-daun tua yang sudah rimbun berdesakan."
+    ]
+  },
+  "tomato septoria leaf spot": {
+    "diseaseName": "Bercak Daun Septoria Tomat",
+    "diseaseNameEn": "Tomato Septoria Leaf Spot",
+    "description": "Disebabkan oleh jamur Septoria lycopersici. Menghasilkan bintik bundar kecil melimpah dengan pusat berwarna abu-abu terang dan pinggiran cokelat tua pada daun tua.",
+    "solutions": [
+      "Petik daun tua yang bergejala bintik abu-abu sesegera mungkin.",
+      "Gunakan fungisida kontak berbahan aktif klorotalonil."
+    ],
+    "preventionTips": [
+      "Lakukan rotasi lahan, jangan menanam tomat di bekas media tanam tahun lalu.",
+      "Bersihkan gulma liar golongan rumput malam di sekitar tanaman."
+    ]
+  },
+  "tomato spider mites two spotted spider mite": {
+    "diseaseName": "Hama Tungau Laba-laba Tomat",
+    "diseaseNameEn": "Tomato Spider Mites",
+    "description": "Serangan hama Tetranychus urticae. Daun tomat tampak berbintik-bintik putih kekuningan halus (stippling) dan terdapat jaring benang tipis di bawah ketiak daun.",
+    "solutions": [
+      "Semprot permukaan bawah daun dengan aliran air bertekanan kuat untuk merontokkan tungau.",
+      "Aplikasikan minyak mimba (neem oil) murni atau akarisida organik."
+    ],
+    "preventionTips": [
+      "Jaga agar lingkungan kebun tidak terlalu kering dan gersang (tungau suka area kering berdebu).",
+      "Gunakan musuh alami tungau seperti kepik predator jika memungkinkan."
+    ]
+  },
+  "tomato target spot": {
+    "diseaseName": "Bercak Target Tomat (Target Spot)",
+    "diseaseNameEn": "Tomato Target Spot",
+    "description": "Disebabkan oleh jamur Corynespora cassiicola. Bercak melingkar kecil cokelat yang membesar membentuk formasi cincin cincin lingkaran konsentris yang jelas.",
+    "solutions": [
+      "Singkirkan sisa-sisa daun pangkasan dari area kebun.",
+      "Aplikasikan fungisida sistemik berbahan aktif azoksistrobin."
+    ],
+    "preventionTips": [
+      "Lakukan penjarangan tanaman agar tajuk daun cepat mengering setelah terkena air.",
+      "Berikan nutrisi kalium organik yang cukup."
+    ]
+  },
+  "tomato tomato yellow leaf curl virus": {
+    "diseaseName": "Virus Keriting Kuning Tomat (TYLCV)",
+    "diseaseNameEn": "Tomato Yellow Leaf Curl Virus",
+    "description": "Disebabkan oleh virus yang ditularkan oleh hama kutu kebul (whitefly). Daun tomat mengerdil, melengkung mangkok ke atas, dan tepi daun menguning parah.",
+    "solutions": [
+      "Cabut dan buang tanaman yang terinfeksi virus karena tidak bisa disembuhkan dengan fungisida.",
+      "Kendalikan vektor penularnya (kutu kebul) menggunakan pestisida nabati atau sabun kalium."
+    ],
+    "preventionTips": [
+      "Pasang kelambu pelindung serangga (insect net) halus pada area semai tomat.",
+      "Pasang perangkap perekat warna kuning cerah di sekitar bedengan kebun."
+    ]
+  },
+  "tomato tomato mosaic virus": {
+    "diseaseName": "Virus Mosaik Tomat (ToMV)",
+    "diseaseNameEn": "Tomato Mosaic Virus",
+    "description": "Virus tanaman yang sangat menular. Menyebabkan corak belang-belang hijau tua dan hijau muda menyerupai pola mosaik pada permukaan daun tomat.",
+    "solutions": [
+      "Segera musnahkan tanaman yang positif mosaik agar tidak menulari pot lain.",
+      "Cuci tangan dan sterilisasi gunting pangkas menggunakan sabun/alkohol sebelum menyentuh tanaman sehat."
+    ],
+    "preventionTips": [
+      "Jangan merokok di area kebun tomat (virus mosaik tembakau kerabat dekat ToMV bisa menular lewat residu tangan).",
+      "Pilih benih bersertifikat bebas kontaminasi virus."
+    ]
+  },
+  "tomato healthy": {
+    "diseaseName": "Tomat Sehat",
+    "diseaseNameEn": "Tomato Healthy",
+    "description": "Daun tomat tegak rindang, berbulu halus normal, klorofil merata, batang kokoh, siap memasuki fase pembungaan dan pembuahan.",
+    "solutions": [
+      "Berikan pupuk susulan organik cair kaya kalium tinggi."
+    ],
+    "preventionTips": [
+      "Lakukan perempelan tunas air secara berkala agar nutrisi fokus ke buah.",
+      "Pasang ajir atau lanjaran bambu penyangga sejak awal agar batang tidak roboh menyentuh tanah."
+    ]
+  },
+  "background": {
+    "diseaseName": "Bukan Daun Tanaman",
+    "diseaseNameEn": "Unknown Background",
+    "description": "Objek yang terdeteksi di depan kamera bukan merupakan struktur daun atau bagian dari tanaman target diagnosa Urban Leaf.",
+    "solutions": [
+      "Arahkan kembali lensa kamera fokus tepat pada selembar daun tanaman."
+    ],
+    "preventionTips": [
+      "Pastikan pencahayaan cukup terang saat memotret objek daun.",
+      "Dekatkan jarak kamera sekitar 10-15 cm dari permukaan daun agar tidak menangkap objek latar belakang yang mengganggu."
+    ]
+  }
+}

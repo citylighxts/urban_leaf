@@ -11,7 +11,6 @@ import 'services/plant_type_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -41,8 +40,8 @@ class UrbanLeafApp extends StatelessWidget {
     return MaterialApp(
       title: 'UrbanLeaf AI',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme, // Tetap menggunakan tema lightTheme bawaanmu
-      home: const LoginPage(), // 4. Ubah dari MainNavigation() ke LoginPage()
+      theme: AppTheme.lightTheme, 
+      home: const LoginPage(), 
     );
   }
 }
