@@ -8,6 +8,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../models/alert_model.dart';
 import '../../models/plant_model.dart';
 import '../../models/weather_model.dart';
+import '../../services/alert_firestore_service.dart';
 import '../../services/plant_firestore_service.dart';
 import '../../widgets/common/section_title.dart';
 import '../../widgets/home/alert_banner_card.dart';
@@ -24,6 +25,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _plantService = PlantFirestoreService();
+  final _alertService = AlertFirestoreService();
   final _weatherService = WeatherService();
 
   WeatherModel? _weather;
@@ -73,6 +75,9 @@ class _HomePageState extends State<HomePage> {
     );
     setState(() => _alerts = result.alerts);
 
+    // Simpan alert baru ke Firestore.
+    _alertService.saveAlerts(result.alerts).catchError((_) {});
+
     // Auto-flag healthy plants whose conditions exceed their tolerance.
     for (final id in result.plantIdsToFlag) {
       final plant = plants.where((p) => p.id == id).firstOrNull;
@@ -110,6 +115,19 @@ class _HomePageState extends State<HomePage> {
         _alerts[index] = _alerts[index].copyWith(status: AlertStatus.handled);
       }
     });
+    _alertService.updateStatus(id, AlertStatus.handled).catchError((_) {});
+  }
+
+  void _dismissAlert(String id) {
+    setState(() => _alerts.removeWhere((a) => a.id == id));
+    _alertService.deleteAlert(id).catchError((_) {});
+  }
+
+  Future<void> _clearOldAlerts() async {
+    await _alertService.deleteOldAlerts();
+    setState(() => _alerts.removeWhere(
+          (a) => a.status == AlertStatus.handled || a.status == AlertStatus.dismissed,
+        ));
   }
 
   @override
@@ -196,8 +214,22 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 24),
                           SectionTitle(
                             title: 'Peringatan Aktif',
-                            trailing: _AlertCountBadge(
-                              count: activeAlerts.length,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _AlertCountBadge(count: activeAlerts.length),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: _clearOldAlerts,
+                                  child: const Text(
+                                    'Bersihkan',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -210,6 +242,7 @@ class _HomePageState extends State<HomePage> {
                                     alert: alert,
                                     onMarkHandled: () =>
                                         _markAlertHandled(alert.id),
+                                    onDismiss: () => _dismissAlert(alert.id),
                                   ),
                                 ),
                               ),

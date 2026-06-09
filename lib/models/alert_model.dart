@@ -86,4 +86,29 @@ class AlertModel {
       actionRequired: actionRequired,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+        'type': type.name,
+        'severity': severity.name,
+        'title': title,
+        'description': description,
+        'plantName': plantName,
+        'plantEmoji': plantEmoji,
+        'status': status.name,
+        'createdAt': createdAt.toIso8601String(),
+        'actionRequired': actionRequired,
+      };
+
+  factory AlertModel.fromMap(Map<String, dynamic> map, String id) => AlertModel(
+        id: id,
+        type: AlertType.values.firstWhere((e) => e.name == map['type']),
+        severity: AlertSeverity.values.firstWhere((e) => e.name == map['severity']),
+        title: map['title'] as String,
+        description: map['description'] as String,
+        plantName: map['plantName'] as String,
+        plantEmoji: map['plantEmoji'] as String,
+        status: AlertStatus.values.firstWhere((e) => e.name == map['status']),
+        createdAt: DateTime.parse(map['createdAt'] as String),
+        actionRequired: map['actionRequired'] as String,
+      );
 }

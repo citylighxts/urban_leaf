@@ -3,6 +3,8 @@ import '../../core/constants/dummy_data.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/diagnosis_model.dart';
+import '../../services/diagnosis_firestore_service.dart';
+import '../../services/plant_firestore_service.dart';
 
 class AiScannerPage extends StatefulWidget {
   const AiScannerPage({super.key});
@@ -873,62 +875,25 @@ class _DiagnosisResult extends StatelessWidget {
   }
 
   void _showSaveDialog(BuildContext context) {
-    final plants = DummyData.plants;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Simpan ke Tanaman',
-                style: AppTextStyles.headingSmall,
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Pilih tanaman yang ingin diperbarui statusnya:',
-                style: AppTextStyles.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              ...plants.take(4).map(
-                    (p) => ListTile(
-                      leading: Text(p.emoji,
-                          style: const TextStyle(fontSize: 24)),
-                      title: Text(p.name,
-                          style: AppTextStyles.labelLarge),
-                      subtitle: Text(p.type,
-                          style: AppTextStyles.bodySmall),
-                      trailing: const Icon(
-                          Icons.chevron_right_rounded,
-                          color: AppColors.textHint),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '✅ Diagnosis disimpan ke ${p.name}',
-                            ),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
+      builder: (ctx) => _SaveDiagnosisSheet(
+        diagnosis: diagnosis,
+        onSaved: (plantName) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Diagnosis disimpan ke $plantName'),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -1100,6 +1065,97 @@ class _HelpSheet extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _SaveDiagnosisSheet extends StatefulWidget {
+  final DiagnosisModel diagnosis;
+  final void Function(String plantName) onSaved;
+
+  const _SaveDiagnosisSheet({required this.diagnosis, required this.onSaved});
+
+  @override
+  State<_SaveDiagnosisSheet> createState() => _SaveDiagnosisSheetState();
+}
+
+class _SaveDiagnosisSheetState extends State<_SaveDiagnosisSheet> {
+  final _plantService = PlantFirestoreService();
+  final _diagnosisService = DiagnosisFirestoreService();
+  bool _saving = false;
+
+  Future<void> _save(dynamic plant) async {
+    setState(() => _saving = true);
+    try {
+      final diagnosis = DiagnosisModel(
+        id: '',
+        plantId: plant.id,
+        plantName: plant.name,
+        plantEmoji: plant.emoji,
+        diseaseName: widget.diagnosis.diseaseName,
+        diseaseNameEn: widget.diagnosis.diseaseNameEn,
+        severity: widget.diagnosis.severity,
+        diagnosisStatus: DiagnosisStatus.active,
+        confidence: widget.diagnosis.confidence,
+        description: widget.diagnosis.description,
+        solutions: widget.diagnosis.solutions,
+        preventionTips: widget.diagnosis.preventionTips,
+        diagnosedAt: DateTime.now(),
+      );
+      await _diagnosisService.addDiagnosis(diagnosis);
+      if (!mounted) return;
+      Navigator.pop(context);
+      widget.onSaved(plant.name);
+    } catch (_) {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Simpan ke Tanaman', style: AppTextStyles.headingSmall),
+          const SizedBox(height: 4),
+          const Text(
+            'Pilih tanaman yang ingin diperbarui statusnya:',
+            style: AppTextStyles.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder(
+            stream: _plantService.watchPlants(),
+            builder: (context, snapshot) {
+              final plants = snapshot.data ?? [];
+              if (plants.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: Text('Belum ada tanaman di kebunmu')),
+                );
+              }
+              return Column(
+                children: plants.take(5).map((p) => ListTile(
+                  leading: Text(p.emoji, style: const TextStyle(fontSize: 24)),
+                  title: Text(p.name, style: AppTextStyles.labelLarge),
+                  subtitle: Text(p.type, style: AppTextStyles.bodySmall),
+                  trailing: _saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.textHint),
+                  onTap: _saving ? null : () => _save(p),
+                )).toList(),
+              );
+            },
           ),
           const SizedBox(height: 8),
         ],

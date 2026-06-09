@@ -76,4 +76,40 @@ class DiagnosisModel {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+        'plantId': plantId,
+        'plantName': plantName,
+        'plantEmoji': plantEmoji,
+        'diseaseName': diseaseName,
+        'diseaseNameEn': diseaseNameEn,
+        'severity': severity.name,
+        'diagnosisStatus': diagnosisStatus.name,
+        'confidence': confidence,
+        'description': description,
+        'solutions': solutions,
+        'preventionTips': preventionTips,
+        'diagnosedAt': diagnosedAt.toIso8601String(),
+        'updatedAt': updatedAt?.toIso8601String(),
+      };
+
+  factory DiagnosisModel.fromMap(Map<String, dynamic> map, String id) => DiagnosisModel(
+        id: id,
+        plantId: map['plantId'] as String,
+        plantName: map['plantName'] as String,
+        plantEmoji: map['plantEmoji'] as String,
+        diseaseName: map['diseaseName'] as String,
+        diseaseNameEn: map['diseaseNameEn'] as String,
+        severity: DiseaseSeverity.values.firstWhere((e) => e.name == map['severity']),
+        diagnosisStatus: DiagnosisStatus.values.firstWhere(
+            (e) => e.name == map['diagnosisStatus']),
+        confidence: (map['confidence'] as num).toDouble(),
+        description: map['description'] as String,
+        solutions: List<String>.from(map['solutions'] as List),
+        preventionTips: List<String>.from(map['preventionTips'] as List),
+        diagnosedAt: DateTime.parse(map['diagnosedAt'] as String),
+        updatedAt: map['updatedAt'] != null
+            ? DateTime.parse(map['updatedAt'] as String)
+            : null,
+      );
 }
