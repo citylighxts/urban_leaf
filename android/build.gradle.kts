@@ -15,28 +15,40 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
-subprojects {
-    project.evaluationDependsOn(":app")
-}
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
 subprojects {
+    // 1. Sinkronisasi target bytecode Kotlin ke JVM 17 untuk semua modul
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         compilerOptions {
-            // Mengambil versi Java target dari task JavaCompile pada masing-masing sub-proyek secara dinamis
-            val javaCompileTask = project.tasks.withType<JavaCompile>().firstOrNull()
-            if (javaCompileTask != null) {
-                val targetVersion = javaCompileTask.targetCompatibility
-                if (targetVersion == "11" || targetVersion == "1.11") {
-                    jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
-                } else if (targetVersion == "17" || targetVersion == "1.17") {
-                    jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
+    }
+
+    // 2. PEMAKSAAN MUTLAK SDK 36: Memaksa aplikasi utama (:app) DAN seluruh library
+    afterEvaluate {
+        if (project.extensions.findByName("android") != null) {
+            val androidExt = project.extensions.getByName("android") as com.android.build.gradle.BaseExtension
+            
+            // INDIKASI SAKTI: Memaksa semuanya kompilasi ke SDK 36 tanpa pengecualian
+            androidExt.compileSdkVersion(36)
+            
+            // Suntikkan namespace otomatis jika identitasnya kosong (aman untuk tflite_v2)
+            if (androidExt.namespace == null) {
+                androidExt.namespace = "io.flutter.plugins." + project.name.replace(Regex("[^a-zA-Z0-9]"), "")
+            }
+
+            // Samakan kepatuhan Java Compiler
+            try {
+                androidExt.compileOptions {
+                    sourceCompatibility = JavaVersion.VERSION_17
+                    targetCompatibility = JavaVersion.VERSION_17
                 }
-            } else {
-                // Fallback default jika tidak terdeteksi
-                jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+            } catch (e: Exception) {
+                // Lewati jika properti Java sudah terkunci secara internal
             }
         }
     }

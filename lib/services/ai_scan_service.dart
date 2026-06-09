@@ -1,127 +1,77 @@
 import 'dart:convert'; // Tambahan untuk json.decode
 import 'dart:io';
 import 'package:flutter/services.dart';
-import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:tflite_v2/tflite_v2.dart';
 
 class AiScanService {
-  Interpreter? _interpreter;
-  List<String>? _labels;
+  Map<String, dynamic>? _explainData;
+  bool _isModelLoaded = false;
 
-  // =============== INI FUNGSI YANG HILANG (DISEDIAKAN KEMBALI) ===============
-  // Fungsi untuk memuat berkas model .tflite dan labels.txt dari folder assets
+  // Fungsi memuat berkas model unquant dan kamus medis dari assets
   Future<void> loadModel() async {
+    if (_isModelLoaded) return;
     try {
-      // 1. Muat Interpreter TFLite secara lokal dari folder assets
-      _interpreter = await Interpreter.fromAsset('assets/models/model.tflite');
-      
-      // 2. Muat teks labels baris-per-baris dari file labels.txt
-      final labelsString = await rootBundle.loadString('assets/models/labels.txt');
-      _labels = labelsString
-          .split('\n')
-          .map((label) => label.trim())
-          .where((label) => label.isNotEmpty)
-          .toList();
+      // 1. Muat berkas model unquant tflite milik kelompokmu
+      await Tflite.loadModel(
+        model: "assets/models/model_unquant.tflite",
+        labels: "assets/models/labels.txt",
+      );
 
-      print("AI Scan Service: Model TFLite & ${_labels!.length} Label Berhasil Dimuat!");
+      // 2. Muat berkas kamus data medis penanganan bahasa Indonesia
+      String jsonString = await rootBundle.loadString('assets/data/disease_knowledge.json');
+      _explainData = jsonDecode(jsonString);
+      _isModelLoaded = true;
+      print(" [AI SUCCESS] Model TFLite v2 & Kamus Medis Berhasil Disinkronkan!");
     } catch (e) {
-      print("AI Scan Service Gagal Memuat Model/Label: $e");
+      print("Gagal menginisialisasi Tflite v2: $e");
     }
   }
 
-  // =============== FUNGSI MEMBACA DATABASE KAMUS PENYAKIT JSON ===============
-  Future<Map<String, dynamic>?> getDiseaseDetails(String outputLabel) async {
-    try {
-      final String jsonString = await rootBundle.loadString('assets/data/disease_knowledge.json');
-      final Map<String, dynamic> data = json.decode(jsonString);
-      
-      // Normalisasi teks agar pencarian key di JSON fleksibel (huruf kecil & spasi)
-      String cleanKey = outputLabel.toLowerCase().replaceAll('_', ' ').trim();
-      
-      print("Mencari Kamus Medis JSON untuk Key: '$cleanKey'");
-
-      if (data.containsKey(cleanKey)) {
-        return data[cleanKey];
-      } else {
-        print("Detail untuk label '$cleanKey' tidak ditemukan di JSON.");
-        return null;
-      }
-    } catch (e) {
-      print("Gagal membaca database JSON lokal: $e");
-      return null;
-    }
-  }
-
-  // Memproses gambar dan mengembalikan hasil inferensi
-  Future<Map<String, dynamic>?> predictImage(File imageFile) async {
-    // PROTEKSI: Jika interpreter belum siap, otomatis coba muat model dulu di sini
-    if (_interpreter == null || _labels == null) {
-      print("Menyiapkan model TFLite secara otomatis sesaat sebelum inferensi...");
+  // Fungsi inferensi gambar otomatis lewat String path file tanpa olah array piksel manual
+  Future<Map<String, dynamic>?> predictImage(String imagePath) async {
+    if (!_isModelLoaded) {
       await loadModel();
     }
 
-    if (_interpreter == null || _labels == null) {
-      print("AI Scan Service: Model tetap belum siap!");
-      return null;
-    }
-
     try {
-      final imageBytes = await imageFile.readAsBytes();
-      final originalImage = img.decodeImage(imageBytes);
-      if (originalImage == null) return null;
-
-      const int inputSize = 224;
-      final resizedImage = img.copyResize(originalImage, width: inputSize, height: inputSize);
-
-      // Inisialisasi input tensor Float32List datar [1, 224, 224, 3]
-      var input = List.generate(
-        1,
-        (index) => List.generate(
-          inputSize,
-          (y) => List.generate(
-            inputSize,
-            (x) {
-              final pixel = resizedImage.getPixel(x, y);
-              return [
-                pixel.r / 255.0,
-                pixel.g / 255.0,
-                pixel.b / 255.0,
-              ];
-            },
-          ),
-        ),
+      // FIX UTAMA: Tambahkan parameter asynch: true untuk memintas masalah GPU Mali Samsung
+      var output = await Tflite.runModelOnImage(
+        path: imagePath,
+        numResults: 1,
+        threshold: 0.1,
+        imageMean: 127.5, // Standard deviasi Teachable Machine unquant model
+        imageStd: 127.5,
+        asynch: true, // <── TAMBAHKAN BARIS INI (SANGAT KRUSIAL UNTUK HP SAMSUNG MALI GPU)
       );
+      print("🤖 DEBUG: Output TFLite: $output"); // <── Tambahkan ini
 
-      // Gunakan output satu dimensi untuk inferensi model dengan satu hasil keluaran
-      var output = List.generate(1, (_) => List<double>.filled(_labels!.length, 0.0));
+      if (output != null && output.isNotEmpty) {
+        String rawLabel = output[0]['label'];
+        // Membersihkan angka indeks di depan label (misal "0 Tomato_Healthy" -> "Tomato_Healthy")
+        String cleanLabel = rawLabel.replaceAll(RegExp(r'^[0-9]+\s'), '').trim();
+        
+        // Normalisasi key untuk dicocokkan ke key disease_knowledge.json
+        String jsonKey = cleanLabel.toLowerCase().replaceAll('_', ' ').trim();
+        var detail = _explainData?[jsonKey];
 
-      // Jalankan inferensi menggunakan metode run
-      _interpreter!.run(input, output);
+        print("🎯 [AI MATCH] Label TFLite: '$cleanLabel' | Ditranslasikan ke JSON Key: '$jsonKey'");
 
-      List<double> results = output[0];
-      double maxScore = -1.0;
-      int maxIndex = -1;
-
-      for (int i = 0; i < results.length; i++) {
-        if (results[i] > maxScore) {
-          maxScore = results[i];
-          maxIndex = i;
-        }
+        return {
+          'diseaseName': cleanLabel,
+          'confidence': output[0]['confidence'] as double,
+          'detailPenyakit': detail,
+        };
       }
-
-      print("AI Scan Sukses! Terdeteksi Indeks: $maxIndex dengan Akurasi: $maxScore");
-
-      return {
-        'diseaseName': _labels![maxIndex],
-        'confidence': maxScore,
-      };
+      print("⚠️ Tflite v2 mengembalikan output kosong/null.");
+      return null;
     } catch (e) {
-      print("AI Scan Service Inferensi Error Asli: $e");
+      print("❌ Terjadi kesalahan inferensi gambar pada native layer Tflite: $e");
       return null;
     }
   }
 
   void dispose() {
-    _interpreter?.close();
+    Tflite.close();
   }
 }

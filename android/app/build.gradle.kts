@@ -9,7 +9,9 @@ plugins {
 
 android {
     namespace = "com.example.urban_leaf"
-    compileSdk = flutter.compileSdkVersion
+    
+    // FIX 1: Paksa nilai kompilasi tertinggi ke Android 14/15 (API 36)
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -18,12 +20,14 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.urban_leaf"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        
+        // Naikkan batas minimum SDK perangkat demi CameraX modern
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        
+        // FIX UTAMA: Tulis konstan angka 36 secara paksa di sini
+        targetSdk = 36
+        
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -38,7 +42,6 @@ android {
 }
 
 kotlin {
-    
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }

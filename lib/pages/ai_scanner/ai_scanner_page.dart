@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart'; // Menggunakan live camera stream
+import 'package:camera/camera.dart'; 
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -8,7 +8,7 @@ import '../../models/diagnosis_model.dart';
 import '../../models/plant_model.dart';
 import '../../services/ai_scan_service.dart';
 import '../../services/plant_firestore_service.dart';
-import '../../main.dart'; // Untuk mengakses variabel global 'cameras'
+import '../../main.dart'; 
 
 class AiScannerPage extends StatefulWidget {
   const AiScannerPage({super.key});
@@ -34,12 +34,12 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
   void initState() {
     super.initState();
     
-    // Panggil fungsi loadModel() yang baru saja kita buat di atas secara aman
+    // Muat arsitektur TFLite di latar belakang secara aman
     Future.microtask(() async {
       await _aiScanService.loadModel();
     });
 
-    _initializeLiveCamera(); // Fungsi live preview kameramu
+    _initializeLiveCamera(); 
 
     _scanLineController = AnimationController(
       vsync: this,
@@ -51,18 +51,18 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
     );
   }
 
-  // Mengaktifkan lensa kamera utama belakang perangkat secara otomatis
   void _initializeLiveCamera() async {
     if (cameras.isEmpty) {
       print("Tidak ada sensor kamera fisik terdeteksi.");
       return;
     }
 
-    // Gunakan kamera belakang (indeks 0 biasanya kamera belakang utama)
+    // Gunakan konfigurasi orientasi resolusi medium agar hemat memori RAM HP
     _cameraController = CameraController(
       cameras[0],
       ResolutionPreset.medium,
       enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.jpeg, // Tambahan: Kunci ke format JPEG murni agar Mali GPU tidak komplain chroma
     );
 
     try {
@@ -70,6 +70,14 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
       if (mounted) setState(() {});
     } catch (e) {
       print("Gagal menyalakan sensor live preview kamera: $e");
+    }
+  }
+
+  // Fungsi mematikan kamera secara bersih untuk membebaskan hardware internal HP
+  Future<void> _disposeCamera() async {
+    if (_cameraController != null) {
+      await _cameraController!.dispose();
+      _cameraController = null;
     }
   }
 
@@ -82,6 +90,7 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
   }
 
   // Aksi tombol potret instan dari live preview kamera
+  // Aksi tombol potret instan dari live preview kamera
   void _takeScan() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
     if (_scanState != _ScanState.idle) return;
@@ -89,7 +98,7 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
     try {
       setState(() => _scanState = _ScanState.scanning);
 
-      // Ambil gambar langsung dari feed kamera yang menyala
+      // 1. Ambil foto dari frame kamera
       final XFile photo = await _cameraController!.takePicture();
       
       setState(() {
@@ -97,15 +106,90 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
         _scanState = _ScanState.analyzing;
       });
 
-      // Jalankan model inferensi TFLite secara lokal
-      final aiResult = await _aiScanService.predictImage(_imageFile!);
-      await Future.delayed(const Duration(milliseconds: 500)); // Jedas sirkulasi visual
+    
+      await _disposeCamera();
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+   
+      if (_imageFile == null || !await _imageFile!.exists() || await _imageFile!.length() == 0) {
+        print("File gambar hasil jepretan kosong atau tidak ditemukan!");
+        _resetScan();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Kamera tidak stabil. Silakan coba potret kembali.')),
+        );
+        return;
+      }
+
+      print("📸 DEBUG: Mencoba memproses file di path: ${_imageFile?.path}");
+      final aiResult = await _aiScanService.predictImage(_imageFile!.path);
+      await Future.delayed(const Duration(milliseconds: 300)); 
 
       if (!mounted) return;
 
       if (aiResult != null) {
+        String originalLabel = aiResult['diseaseName'].toString();
+   
+        final detailPenyakit = aiResult['detailPenyakit'] as Map<String, dynamic>?;
+
+        setState(() {
+          _scanState = _ScanState.result;
+          _result = DiagnosisModel(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            plantId: '',
+            plantName: '',
+            plantEmoji: '',
+            diseaseName: detailPenyakit?['diseaseName'] ?? originalLabel,
+            diseaseNameEn: detailPenyakit?['diseaseNameEn'] ?? originalLabel,
+            severity: DiseaseSeverity.moderate,
+            diagnosisStatus: DiagnosisStatus.active,
+            confidence: aiResult['confidence'] as double,
+            description: detailPenyakit?['description'] ?? 'Detail analisis gejala tidak tersedia.',
+            solutions: List<String>.from(detailPenyakit?['solutions'] ?? ['Pantau sirkulasi air tanaman harian.']),
+            preventionTips: List<String>.from(detailPenyakit?['preventionTips'] ?? ['Jaga sanitasi kebersihan area pot.']),
+            diagnosedAt: DateTime.now(),
+          );
+        });
+      } else {
+        _resetScan();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal menganalisis daun tanaman. Silakan coba lagi.')),
+        );
+      }
+    } catch (e) {
+      _resetScan();
+      print("Error saat mengambil gambar: $e");
+    }
+  }
+
+  void _pickFromGallery() async {
+    if (_scanState != _ScanState.idle) return;
+
+    try {
+      await _disposeCamera();
+
+      final XFile? photo = await _galleryPicker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      
+      if (photo == null) {
+        // Jika user membatalkan pilihan galeri, nyalakan kembali live view kameranya
+        _initializeLiveCamera();
+        return;
+      }
+
+      setState(() {
+        _imageFile = File(photo.path);
+        _scanState = _ScanState.analyzing;
+      });
+
+      // 2. Berikan jeda waktu agar file dari galeri selesai di-cache oleh sistem Flutter
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      final aiResult = await _aiScanService.predictImage(_imageFile!.path);
+      if (!mounted) return;
+
+      if (aiResult != null) {
         String dynamicLabel = aiResult['diseaseName'].toString();
-        final detailPenyakit = await _getDiseaseDetailsFallback(dynamicLabel);
+        final detailPenyakit = aiResult['detailPenyakit'] as Map<String, dynamic>?;
 
         setState(() {
           _scanState = _ScanState.result;
@@ -120,79 +204,30 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
             diagnosisStatus: DiagnosisStatus.active,
             confidence: aiResult['confidence'] as double,
             description: detailPenyakit?['description'] ?? 'Detail deskripsi tidak tersedia.',
-            solutions: List<String>.from(detailPenyakit?['solutions'] ?? ['Amati perkembangan daun tanaman harian.']),
-            preventionTips: List<String>.from(detailPenyakit?['preventionTips'] ?? ['Jaga sirkulasi udara media tanam.']),
+            solutions: List<String>.from(detailPenyakit?['solutions'] ?? ['Isolasi pot tanaman segera.']),
+            preventionTips: List<String>.from(detailPenyakit?['preventionTips'] ?? ['Hindari kelembapan berlebih.']),
             diagnosedAt: DateTime.now(),
           );
         });
       } else {
         _resetScan();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Gagal menganalisis daun tanaman. Silakan coba lagi.')),
+          const SnackBar(content: Text('Gagal memproses gambar dari galeri.')),
         );
       }
     } catch (e) {
       _resetScan();
-      print("❌ Error saat menjepret gambar: $e");
-    }
-  }
-
-  // Mengambil berkas pendukung foto lewat galeri lokal
-  void _pickFromGallery() async {
-    final XFile? photo = await _galleryPicker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (photo == null) return;
-
-    setState(() {
-      _imageFile = File(photo.path);
-      _scanState = _ScanState.analyzing;
-    });
-
-    final aiResult = await _aiScanService.predictImage(_imageFile!);
-    if (!mounted) return;
-
-    if (aiResult != null) {
-      String dynamicLabel = aiResult['diseaseName'].toString();
-      final detailPenyakit = await _getDiseaseDetailsFallback(dynamicLabel);
-
-      setState(() {
-        _scanState = _ScanState.result;
-        _result = DiagnosisModel(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          plantId: '',
-          plantName: '',
-          plantEmoji: '',
-          diseaseName: detailPenyakit?['diseaseName'] ?? dynamicLabel,
-          diseaseNameEn: detailPenyakit?['diseaseNameEn'] ?? dynamicLabel,
-          severity: DiseaseSeverity.moderate,
-          diagnosisStatus: DiagnosisStatus.active,
-          confidence: aiResult['confidence'] as double,
-          description: detailPenyakit?['description'] ?? 'Detail deskripsi tidak tersedia.',
-          solutions: List<String>.from(detailPenyakit?['solutions'] ?? ['Isolasi pot tanaman segera.']),
-          preventionTips: List<String>.from(detailPenyakit?['preventionTips'] ?? ['Hindari kelembapan berlebih.']),
-          diagnosedAt: DateTime.now(),
-        );
-      });
-    } else {
-      _resetScan();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Gagal memproses gambar dari galeri.')),
-      );
+      print("Error saat memproses galeri: $e");
     }
   }
 
   void _resetScan() {
+    _initializeLiveCamera(); // Nyalakan kembali live feed kamera saat user menekan tombol re-scan
     setState(() {
       _scanState = _ScanState.idle;
       _result = null;
       _imageFile = null;
     });
-  }
-
-  // Fallback extension method for AiScanService when disease detail lookup is unavailable.
-  // This allows existing scan logic to continue using default values.
-  // If the service later exposes a real implementation, the instance method will take precedence.
-  Future<Map<String, dynamic>?> _getDiseaseDetailsFallback(String diseaseName) async {
-    return null;
   }
 
   @override
@@ -265,14 +300,12 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // KONDISI UTAMA: Tampilkan Live Camera Feed jika idle/scanning
               _cameraController != null && _cameraController!.value.isInitialized && (_scanState == _ScanState.idle || _scanState == _ScanState.scanning)
                   ? CameraPreview(_cameraController!)
                   : (_imageFile != null 
-                      ? Image.file(_imageFile!, fit: BoxFit.cover) // Tampilkan foto beku pas di-analisis
+                      ? Image.file(_imageFile!, fit: BoxFit.cover) 
                       : const Center(child: CircularProgressIndicator(color: Colors.greenAccent))),
               
-              // Efek Garis Laser Animasi Pemindaian
               if (_scanState == _ScanState.scanning || _scanState == _ScanState.analyzing)
                 AnimatedBuilder(
                   animation: _scanLineAnim,
@@ -327,7 +360,6 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
             icon: const Icon(Icons.photo_library_rounded, color: Colors.white70, size: 28),
             onPressed: _pickFromGallery,
           ),
-          // Tombol Potret Bulat Besar Instan
           GestureDetector(
             onTap: _takeScan,
             child: Container(
