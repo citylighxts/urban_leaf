@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/plant_model.dart';
@@ -54,6 +55,68 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     await _loadProfile();
+  }
+
+  Future<void> _changePhoto(ImageSource source) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final url = await _profileService.uploadPhoto(source);
+      if (url != null && mounted) {
+        await _loadProfile();
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Gagal upload foto: $e'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showPhotoOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textHint,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: const Text('Ambil Foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _changePhoto(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Pilih dari Galeri'),
+              onTap: () {
+                Navigator.pop(context);
+                _changePhoto(ImageSource.gallery);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -166,9 +229,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildAppBar() {
-    final name  = _profile?.displayName ?? '';
-    final city  = _profile?.city ?? '';
-    final title = _profile?.title ?? '';
+    final name     = _profile?.displayName ?? '';
+    final city     = _profile?.city ?? '';
+    final title    = _profile?.title ?? '';
+    final photoUrl = _profile?.photoUrl;
     final subtitle = [title, city].where((s) => s.isNotEmpty).join(' · ');
 
     return SliverAppBar(
@@ -182,16 +246,47 @@ class _ProfilePageState extends State<ProfilePage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                ),
-                child: const Center(
-                  child: Text('🌿', style: TextStyle(fontSize: 38)),
+              GestureDetector(
+                onTap: _showPhotoOptions,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: ClipOval(
+                        child: photoUrl != null && photoUrl.isNotEmpty
+                            ? Image.network(
+                                photoUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stack) => const Center(
+                                  child: Text('🌿', style: TextStyle(fontSize: 38)),
+                                ),
+                              )
+                            : const Center(
+                                child: Text('🌿', style: TextStyle(fontSize: 38)),
+                              ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded, size: 12, color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),

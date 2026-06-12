@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -33,11 +35,22 @@ class _HomePageState extends State<HomePage> {
   List<AlertModel> _alerts = [];
   bool _weatherLoading = true;
   String? _weatherError;
+  bool _alertsGenerated = false;
+  StreamSubscription<List<AlertModel>>? _alertSub;
 
   @override
   void initState() {
     super.initState();
+    _alertSub = _alertService.watchAlerts().listen((alerts) {
+      if (mounted) setState(() => _alerts = alerts);
+    });
     _loadWeather();
+  }
+
+  @override
+  void dispose() {
+    _alertSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadWeather({bool forceRefresh = false}) async {
@@ -52,8 +65,7 @@ class _HomePageState extends State<HomePage> {
         _weather = result.current;
         _forecast = result.forecast;
         _weatherLoading = false;
-        // Reset alerts so StreamBuilder re-generates with real weather
-        _alerts = [];
+        _alertsGenerated = false;
       });
     } catch (e) {
       if (!mounted) return;
@@ -73,9 +85,8 @@ class _HomePageState extends State<HomePage> {
       forecast: _forecast,
       plants: plants,
     );
-    setState(() => _alerts = result.alerts);
 
-    // Simpan alert baru ke Firestore.
+    // Hanya simpan alert baru ke Firestore. State _alerts dikendalikan stream.
     _alertService.saveAlerts(result.alerts).catchError((_) {});
 
     // Auto-flag healthy plants whose conditions exceed their tolerance.
@@ -109,25 +120,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _markAlertHandled(String id) {
-    setState(() {
-      final index = _alerts.indexWhere((alert) => alert.id == id);
-      if (index != -1) {
-        _alerts[index] = _alerts[index].copyWith(status: AlertStatus.handled);
-      }
-    });
+    // State dikendalikan stream Firestore — cukup update Firestore.
     _alertService.updateStatus(id, AlertStatus.handled).catchError((_) {});
   }
 
   void _dismissAlert(String id) {
-    setState(() => _alerts.removeWhere((a) => a.id == id));
     _alertService.deleteAlert(id).catchError((_) {});
   }
 
   Future<void> _clearOldAlerts() async {
     await _alertService.deleteOldAlerts();
-    setState(() => _alerts.removeWhere(
-          (a) => a.status == AlertStatus.handled || a.status == AlertStatus.dismissed,
-        ));
   }
 
   @override
@@ -137,9 +139,9 @@ class _HomePageState extends State<HomePage> {
       builder: (context, snapshot) {
         final plants = snapshot.data ?? const <PlantModel>[];
 
-        // Re-generate alerts saat weather sudah ada tapi alerts masih kosong
-        // (terjadi setelah weather berhasil di-fetch atau plants baru masuk)
-        if (snapshot.hasData && _weather != null && _alerts.isEmpty) {
+        // Generate alert baru setiap kali weather di-fetch ulang.
+        if (snapshot.hasData && _weather != null && !_alertsGenerated) {
+          _alertsGenerated = true;
           WidgetsBinding.instance.addPostFrameCallback(
             (_) { if (mounted) _regenerateAlerts(plants); },
           );

@@ -1209,6 +1209,9 @@ PODS:
   - Firebase/Firestore (12.14.0):
     - Firebase/CoreOnly
     - FirebaseFirestore (~> 12.14.0)
+  - Firebase/Storage (12.14.0):
+    - Firebase/CoreOnly
+    - FirebaseStorage (~> 12.14.0)
   - firebase_analytics (12.4.2):
     - firebase_core
     - FirebaseAnalytics (= 12.14.0)
@@ -1222,6 +1225,10 @@ PODS:
     - Flutter
   - firebase_crashlytics (5.2.3):
     - Firebase/Crashlytics (= 12.14.0)
+    - firebase_core
+    - Flutter
+  - firebase_storage (13.4.2):
+    - Firebase/Storage (= 12.14.0)
     - firebase_core
     - Flutter
   - FirebaseAnalytics (12.14.0):
@@ -1306,6 +1313,13 @@ PODS:
     - nanopb (~> 3.30910.0)
     - PromisesSwift (~> 2.1)
   - FirebaseSharedSwift (12.14.0)
+  - FirebaseStorage (12.14.0):
+    - FirebaseAppCheckInterop (~> 12.14.0)
+    - FirebaseAuthInterop (~> 12.14.0)
+    - FirebaseCore (~> 12.14.0)
+    - FirebaseCoreExtension (~> 12.14.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GTMSessionFetcher/Core (< 6.0, >= 3.4)
   - Flutter (1.0.0)
   - geocoding_ios (1.0.5):
     - Flutter
@@ -1483,6 +1497,7 @@ DEPENDENCIES:
   - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_crashlytics (from `.symlinks/plugins/firebase_crashlytics/ios`)
+  - firebase_storage (from `.symlinks/plugins/firebase_storage/ios`)
   - Flutter (from `Flutter`)
   - geocoding_ios (from `.symlinks/plugins/geocoding_ios/ios`)
   - geolocator_apple (from `.symlinks/plugins/geolocator_apple/darwin`)
@@ -1508,6 +1523,7 @@ SPEC REPOS:
     - FirebaseRemoteConfigInterop
     - FirebaseSessions
     - FirebaseSharedSwift
+    - FirebaseStorage
     - GoogleAdsOnDeviceConversion
     - GoogleAppMeasurement
     - GoogleDataTransport
@@ -1532,6 +1548,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/firebase_core/ios"
   firebase_crashlytics:
     :path: ".symlinks/plugins/firebase_crashlytics/ios"
+  firebase_storage:
+    :path: ".symlinks/plugins/firebase_storage/ios"
   Flutter:
     :path: Flutter
   geocoding_ios:
@@ -1552,6 +1570,7 @@ SPEC CHECKSUMS:
   firebase_auth: d4091ec40b52cc2ea56171ea521c30b388844acb
   firebase_core: 383e19b49a08df5d7a6cf5017616de6a357ed7af
   firebase_crashlytics: 88273c8643a258ff74ee26203e319a782aa8b12c
+  firebase_storage: 152b3447cf137c80da290a2592dc76b82cc7542b
   FirebaseAnalytics: 99364329a3ea4d1ab4a3744b5464371b7351c481
   FirebaseAppCheckInterop: f123c0261a7b46f060e98fc2961651f1ac68f384
   FirebaseAuth: 01a77d472aec77ec008141e7d859d1b9cb8dc2cf
@@ -1566,6 +1585,7 @@ SPEC CHECKSUMS:
   FirebaseRemoteConfigInterop: 40ecdce5a4feee7643b81342f32f1cded905bb07
   FirebaseSessions: c9e7b7829265454f08cb68f7f8a6650c9b221bd4
   FirebaseSharedSwift: 7c659ebf23afdc1e60a05df72a07ad7349f5758f
+  FirebaseStorage: 84d86cc0c0451e56e30f235fce26a264f1de13dc
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   geocoding_ios: 33776c9ebb98d037b5e025bb0e7537f6dd19646e
   geolocator_apple: ab36aa0e8b7d7a2d7639b3b4e48308394e8cef5e

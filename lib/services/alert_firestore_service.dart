@@ -23,13 +23,18 @@ class AlertFirestoreService {
     return col;
   }
 
-  /// Simpan daftar alert sekaligus (batch write). Alert yang sudah ada (same id) di-skip.
+  /// Simpan alert baru ke Firestore. Alert yang sudah ada (same id) di-skip
+  /// agar status handled/dismissed tidak tertimpa.
   Future<void> saveAlerts(List<AlertModel> alerts) async {
     if (alerts.isEmpty) return;
     final col = _requireCol;
+    final existing = await col.get();
+    final existingIds = existing.docs.map((d) => d.id).toSet();
+    final newAlerts = alerts.where((a) => !existingIds.contains(a.id)).toList();
+    if (newAlerts.isEmpty) return;
     final batch = _firestore.batch();
-    for (final alert in alerts) {
-      batch.set(col.doc(alert.id), alert.toMap(), SetOptions(merge: false));
+    for (final alert in newAlerts) {
+      batch.set(col.doc(alert.id), alert.toMap());
     }
     await batch.commit();
   }
