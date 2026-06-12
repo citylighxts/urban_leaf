@@ -569,12 +569,20 @@ class _DiagnosisStreamTab extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+
         if (snapshot.hasError) {
+          print("=== DIAGNOSIS ERROR ===");
+          print(snapshot.error);
+
           return Center(
-            child: Text('Gagal memuat riwayat penyakit',
-                style: TextStyle(color: AppColors.danger)),
+            child: Text(
+              'Gagal memuat riwayat penyakit\n${snapshot.error}',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.danger),
+            ),
           );
         }
+
         return _DiagnosisTab(
           diagnoses: snapshot.data ?? [],
           plant: plant,

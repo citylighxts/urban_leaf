@@ -19,6 +19,20 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    if (name == "tflite_v2") {
+
+        plugins.withId("com.android.library") {
+            extensions.configure<com.android.build.gradle.LibraryExtension> {
+
+                namespace = "sq.flutter.tflite"
+
+                compileSdk = 34
+            }
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
