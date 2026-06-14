@@ -1,13 +1,17 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/services/weather_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/article_model.dart';
+import '../../models/plant_model.dart';
 import '../../models/plant_type_model.dart';
 import '../../models/weather_model.dart';
 import '../../pages/kebunku/add_edit_plant_page.dart';
 import '../../services/article_service.dart';
+import '../../services/plant_firestore_service.dart';
 import '../../services/plant_type_service.dart';
+import '../../services/tip_generator_service.dart';
 import '../../widgets/common/section_title.dart';
 
 class EdukasiPage extends StatefulWidget {
@@ -20,11 +24,14 @@ class EdukasiPage extends StatefulWidget {
 class _EdukasiPageState extends State<EdukasiPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final _articlesKey = GlobalKey<_ArticlesTabState>();
 
   List<PlantTypeModel> _plantTypes = [];
   bool _plantTypesLoading = true;
 
   WeatherModel? _weather;
+  List<ForecastDayModel> _forecast = [];
+  List<PlantModel> _plants = [];
 
   @override
   void initState() {
@@ -32,6 +39,7 @@ class _EdukasiPageState extends State<EdukasiPage>
     _tabController = TabController(length: 3, vsync: this);
     _loadPlantTypes();
     _loadWeather();
+    _loadPlants();
   }
 
   Future<void> _loadPlantTypes() async {
@@ -51,7 +59,20 @@ class _EdukasiPageState extends State<EdukasiPage>
   Future<void> _loadWeather() async {
     try {
       final result = await WeatherService().fetchWeather();
-      if (mounted) setState(() => _weather = result.current);
+      if (mounted) {
+        setState(() {
+          _weather = result.current;
+          _forecast = result.forecast;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadPlants() async {
+    try {
+      if (FirebaseAuth.instance.currentUser == null) return;
+      final plants = await PlantFirestoreService().watchPlants().first;
+      if (mounted) setState(() => _plants = plants);
     } catch (_) {}
   }
 
@@ -70,13 +91,22 @@ class _EdukasiPageState extends State<EdukasiPage>
         body: TabBarView(
           controller: _tabController,
           children: [
-            const _ArticlesTab(),
+            _ArticlesTab(
+              key: _articlesKey,
+              weather: _weather,
+              forecast: _forecast,
+              plants: _plants,
+            ),
             _plantTypesLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _RecommendedPlantsTab(plantTypes: _plantTypes, weather: _weather),
+                : _RecommendedPlantsTab(
+                    plantTypes: _plantTypes,
+                    weather: _weather,
+                    forecast: _forecast,
+                  ),
             _plantTypesLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _CalendarTab(plantTypes: _plantTypes),
+                : _CalendarTab(plantTypes: _plantTypes, forecast: _forecast),
           ],
         ),
       ),
@@ -107,7 +137,11 @@ class _EdukasiPageState extends State<EdukasiPage>
         IconButton(
           icon:
               const Icon(Icons.search_rounded, color: AppColors.textPrimary),
-          onPressed: () {},
+          onPressed: () {
+            if (_tabController.index == 0) {
+              _articlesKey.currentState?.activateSearch();
+            }
+          },
         ),
       ],
       bottom: TabBar(
@@ -130,7 +164,16 @@ class _EdukasiPageState extends State<EdukasiPage>
 // ─── Articles Tab ─────────────────────────────────────────────────────────────
 
 class _ArticlesTab extends StatefulWidget {
-  const _ArticlesTab();
+  final WeatherModel? weather;
+  final List<ForecastDayModel> forecast;
+  final List<PlantModel> plants;
+
+  const _ArticlesTab({
+    super.key,
+    this.weather,
+    this.forecast = const [],
+    this.plants = const [],
+  });
 
   @override
   State<_ArticlesTab> createState() => _ArticlesTabState();
@@ -140,11 +183,85 @@ class _ArticlesTabState extends State<_ArticlesTab> {
   final _service = ArticleService();
   late Future<List<ArticleModel>> _future;
   ArticleCategory? _selectedCategory;
+  String _searchQuery = '';
+  bool _searchActive = false;
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _future = _service.fetchAll();
+  }
+
+  List<ArticleModel> _surfaceContextual(
+      List<ArticleModel> all, WeatherModel weather) {
+    final result = <ArticleModel>[];
+    final month = DateTime.now().month;
+
+    // Suhu panas → artikel cuaca panas
+    if (weather.temperature >= 32) {
+      result.addAll(all.where((a) =>
+          a.category == ArticleCategory.weather &&
+          (a.title.toLowerCase().contains('panas') ||
+              a.title.toLowerCase().contains('kemarau') ||
+              a.title.toLowerCase().contains('uv'))));
+    }
+
+    // Kelembapan tinggi / hujan → artikel jamur & musim hujan
+    if (weather.humidity >= 80 || weather.rainProbability >= 60) {
+      result.addAll(all.where((a) =>
+          a.category == ArticleCategory.weather &&
+          (a.title.toLowerCase().contains('hujan') ||
+              a.title.toLowerCase().contains('jamur') ||
+              a.title.toLowerCase().contains('kelembapan')) ||
+          a.category == ArticleCategory.pest &&
+              (a.title.toLowerCase().contains('jamur') ||
+                  a.title.toLowerCase().contains('bercak'))));
+    }
+
+    // Musim kemarau → artikel hemat air
+    if ([6, 7, 8, 9].contains(month)) {
+      result.addAll(all.where((a) =>
+          a.title.toLowerCase().contains('kemarau') ||
+          a.title.toLowerCase().contains('air')));
+    }
+
+    // Musim hujan → artikel musim hujan
+    if ([11, 12, 1, 2].contains(month)) {
+      result.addAll(all.where((a) =>
+          a.title.toLowerCase().contains('hujan') ||
+          a.category == ArticleCategory.pest));
+    }
+
+    // Deduplicate, max 3 artikel
+    final seen = <String>{};
+    return result.where((a) => seen.add(a.id)).take(3).toList();
+  }
+
+  void activateSearch() {
+    setState(() => _searchActive = true);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<ArticleModel> _applyFilters(List<ArticleModel> all) {
+    var result = _selectedCategory == null
+        ? all
+        : all.where((a) => a.category == _selectedCategory).toList();
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      result = result
+          .where((a) =>
+              a.title.toLowerCase().contains(q) ||
+              a.subtitle.toLowerCase().contains(q) ||
+              a.content.toLowerCase().contains(q))
+          .toList();
+    }
+    return result;
   }
 
   @override
@@ -179,42 +296,109 @@ class _ArticlesTabState extends State<_ArticlesTab> {
         }
 
         final all = snapshot.data ?? [];
-        final filtered = _selectedCategory == null
-            ? all
-            : all.where((a) => a.category == _selectedCategory).toList();
-        final featured = filtered.where((a) => a.isFeatured).toList();
-        final others = filtered.where((a) => !a.isFeatured).toList();
+        final filtered = _applyFilters(all);
+        final isSearching = _searchQuery.isNotEmpty;
+        final featured =
+            isSearching ? <ArticleModel>[] : filtered.where((a) => a.isFeatured).toList();
+        final others =
+            isSearching ? filtered : filtered.where((a) => !a.isFeatured).toList();
+
+        // Contextual surfacing: articles matching today's conditions
+        final weather = widget.weather;
+        final contextualArticles = isSearching || weather == null
+            ? <ArticleModel>[]
+            : _surfaceContextual(all, weather);
+
+        // Tips hari ini
+        final tips = weather == null
+            ? <DailyTip>[]
+            : TipGeneratorService.generate(
+                weather: weather,
+                forecast: widget.forecast,
+                plants: widget.plants,
+              );
 
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _CategoryChips(
-              selected: _selectedCategory,
-              onSelect: (cat) =>
-                  setState(() => _selectedCategory = cat),
-            ),
-            const SizedBox(height: 20),
+            if (_searchActive) ...[
+              TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Cari artikel...',
+                  prefixIcon: const Icon(Icons.search_rounded,
+                      color: AppColors.textHint),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.close_rounded,
+                        color: AppColors.textHint),
+                    onPressed: () => setState(() {
+                      _searchActive = false;
+                      _searchQuery = '';
+                      _searchController.clear();
+                    }),
+                  ),
+                ),
+                onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (!isSearching) ...[
+              _CategoryChips(
+                selected: _selectedCategory,
+                onSelect: (cat) => setState(() => _selectedCategory = cat),
+              ),
+              const SizedBox(height: 20),
+              // ── Tips Hari Ini ──
+              if (tips.isNotEmpty) ...[
+                const SectionTitle(title: 'Tips Hari Ini'),
+                const SizedBox(height: 12),
+                _TipsCarousel(tips: tips),
+                const SizedBox(height: 24),
+              ],
+              // ── Relevan untuk kondisi sekarang ──
+              if (contextualArticles.isNotEmpty &&
+                  _selectedCategory == null) ...[
+                const SectionTitle(title: 'Relevan untuk Kondisi Hari Ini'),
+                const SizedBox(height: 12),
+                ...contextualArticles.map(
+                  (a) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ArticleListCard(article: a, isHighlighted: true),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ],
             if (featured.isNotEmpty) ...[
               const SectionTitle(title: 'Artikel Pilihan'),
               const SizedBox(height: 12),
               _FeaturedArticleCard(article: featured.first),
               const SizedBox(height: 24),
             ],
-            const SectionTitle(title: 'Semua Artikel'),
-            const SizedBox(height: 12),
-            ...others.map(
-              (a) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _ArticleListCard(article: a),
+            if (others.isNotEmpty) ...[
+              SectionTitle(
+                  title: isSearching
+                      ? 'Hasil Pencarian (${others.length})'
+                      : 'Semua Artikel'),
+              const SizedBox(height: 12),
+              ...others.map(
+                (a) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _ArticleListCard(article: a),
+                ),
               ),
-            ),
+            ],
             if (filtered.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 40),
                 child: Center(
                   child: Text(
-                    'Tidak ada artikel dalam kategori ini.',
+                    isSearching
+                        ? 'Tidak ada artikel yang cocok dengan "$_searchQuery".'
+                        : 'Tidak ada artikel dalam kategori ini.',
                     style: AppTextStyles.bodySmall,
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
@@ -414,9 +598,110 @@ class _FeaturedArticleCard extends StatelessWidget {
   }
 }
 
+// ── Tips Carousel ─────────────────────────────────────────────────────────────
+
+class _TipsCarousel extends StatelessWidget {
+  final List<DailyTip> tips;
+  const _TipsCarousel({required this.tips});
+
+  Color _bgColor(TipPriority p) {
+    switch (p) {
+      case TipPriority.urgent:
+        return const Color(0xFFFFF3CD);
+      case TipPriority.normal:
+        return AppColors.accentDeep;
+      case TipPriority.info:
+        return AppColors.surfaceVariant;
+    }
+  }
+
+  Color _borderColor(TipPriority p) {
+    switch (p) {
+      case TipPriority.urgent:
+        return const Color(0xFFFFCC00);
+      case TipPriority.normal:
+        return AppColors.primaryLight;
+      case TipPriority.info:
+        return const Color(0xFFDDE8E0);
+    }
+  }
+
+  Color _titleColor(TipPriority p) {
+    switch (p) {
+      case TipPriority.urgent:
+        return const Color(0xFF7B5800);
+      case TipPriority.normal:
+        return AppColors.primaryDark;
+      case TipPriority.info:
+        return AppColors.textPrimary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 130,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: tips.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          final tip = tips[i];
+          return Container(
+            width: 260,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _bgColor(tip.priority),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _borderColor(tip.priority)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(tip.emoji,
+                        style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        tip.title,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _titleColor(tip.priority),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  tip.body,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _titleColor(tip.priority).withValues(alpha: 0.85),
+                    height: 1.45,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _ArticleListCard extends StatelessWidget {
   final ArticleModel article;
-  const _ArticleListCard({required this.article});
+  final bool isHighlighted;
+  const _ArticleListCard(
+      {required this.article, this.isHighlighted = false});
 
   @override
   Widget build(BuildContext context) {
@@ -429,9 +714,14 @@ class _ArticleListCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: isHighlighted ? AppColors.accentDeep : AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE8F0EA)),
+          border: Border.all(
+            color: isHighlighted
+                ? AppColors.primaryLight
+                : const Color(0xFFE8F0EA),
+            width: isHighlighted ? 1.5 : 1,
+          ),
         ),
         child: Row(
           children: [
@@ -439,7 +729,9 @@ class _ArticleListCard extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
+                color: isHighlighted
+                    ? AppColors.surface
+                    : AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Center(
@@ -498,45 +790,72 @@ class _ArticleListCard extends StatelessWidget {
 
 // ─── Recommended Plants Tab ───────────────────────────────────────────────────
 
+enum _MatchLevel { both, weatherOnly, monthOnly }
+
 class _RecommendedPlantsTab extends StatelessWidget {
   final List<PlantTypeModel> plantTypes;
   final WeatherModel? weather;
-  const _RecommendedPlantsTab({required this.plantTypes, this.weather});
+  final List<ForecastDayModel> forecast;
+
+  const _RecommendedPlantsTab({
+    required this.plantTypes,
+    required this.forecast,
+    this.weather,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Filter plant types whose tolerance range covers the current weather.
-    final recommended = weather == null
-        ? <PlantTypeModel>[]
-        : plantTypes.where((p) =>
-            weather!.temperature >= p.minTemp &&
-            weather!.temperature <= p.maxTemp &&
-            weather!.humidity >= p.minHumidity &&
-            weather!.humidity <= p.maxHumidity).toList();
+    final currentMonth = DateTime.now().month;
+
+    bool matchesWeather(PlantTypeModel p) => weather != null &&
+        weather!.temperature >= p.minTemp &&
+        weather!.temperature <= p.maxTemp &&
+        weather!.humidity >= p.minHumidity &&
+        weather!.humidity <= p.maxHumidity;
+
+    bool matchesMonth(PlantTypeModel p) => p.bestMonths.contains(currentMonth);
+
+    _MatchLevel? level(PlantTypeModel p) {
+      final w = matchesWeather(p);
+      final m = matchesMonth(p);
+      if (w && m) return _MatchLevel.both;
+      if (w) return _MatchLevel.weatherOnly;
+      if (m) return _MatchLevel.monthOnly;
+      return null;
+    }
+
+    final withLevel = plantTypes
+        .map((p) => (plant: p, level: level(p)))
+        .where((e) => e.level != null)
+        .toList()
+      ..sort((a, b) => a.level!.index.compareTo(b.level!.index));
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        if (weather != null) _WeatherContextCard(weather: weather!),
+        if (weather != null)
+          _WeatherContextCard(weather: weather!, forecast: forecast),
         const SizedBox(height: 20),
         const SectionTitle(title: 'Cocok Ditanam Bulan Ini'),
         const SizedBox(height: 12),
-        if (recommended.isEmpty)
+        if (withLevel.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 32),
             child: Center(
               child: Text(
-                'Tidak ada tanaman yang sesuai kondisi cuaca saat ini.',
+                weather == null
+                    ? 'Memuat data cuaca...'
+                    : 'Tidak ada tanaman yang sesuai kondisi saat ini.',
                 style: AppTextStyles.bodySmall,
                 textAlign: TextAlign.center,
               ),
             ),
           )
         else
-          ...recommended.map(
-            (p) => Padding(
+          ...withLevel.map(
+            (e) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: _RecommendedPlantCard(plant: p),
+              child: _RecommendedPlantCard(plant: e.plant, matchLevel: e.level!),
             ),
           ),
         const SizedBox(height: 32),
@@ -547,42 +866,62 @@ class _RecommendedPlantsTab extends StatelessWidget {
 
 class _WeatherContextCard extends StatelessWidget {
   final WeatherModel weather;
-  const _WeatherContextCard({required this.weather});
+  final List<ForecastDayModel> forecast;
+  const _WeatherContextCard({required this.weather, required this.forecast});
 
   @override
   Widget build(BuildContext context) {
+    final avgMaxTemp = forecast.isEmpty
+        ? weather.temperature
+        : forecast.map((f) => f.maxTemp).reduce((a, b) => a + b) /
+            forecast.length;
+    final avgRain = forecast.isEmpty
+        ? weather.rainProbability
+        : forecast.map((f) => f.rainProbability).reduce((a, b) => a + b) /
+            forecast.length;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.accentDeep,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: AppColors.primaryLight.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.3)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🗓️', style: TextStyle(fontSize: 28)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Rekomendasi untuk Bulan Ini',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryDark,
-                  ),
+          Row(
+            children: [
+              const Text('🗓️', style: TextStyle(fontSize: 24)),
+              const SizedBox(width: 10),
+              const Text(
+                'Kondisi Minggu Ini',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryDark,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Suhu rata-rata ${weather.temperature.toStringAsFixed(0)}°C · Kelembapan ${weather.humidity.toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _ForecastPill(
+                  emoji: '🌡️',
+                  label: 'Rata-rata maks',
+                  value: '${avgMaxTemp.toStringAsFixed(0)}°C'),
+              const SizedBox(width: 8),
+              _ForecastPill(
+                  emoji: '💧',
+                  label: 'Peluang hujan',
+                  value: '${avgRain.toStringAsFixed(0)}%'),
+              const SizedBox(width: 8),
+              _ForecastPill(
+                  emoji: '💦',
+                  label: 'Kelembapan',
+                  value: '${weather.humidity.toStringAsFixed(0)}%'),
+            ],
           ),
         ],
       ),
@@ -590,9 +929,48 @@ class _WeatherContextCard extends StatelessWidget {
   }
 }
 
+class _ForecastPill extends StatelessWidget {
+  final String emoji;
+  final String label;
+  final String value;
+  const _ForecastPill(
+      {required this.emoji, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFDDE8E0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 14)),
+            const SizedBox(height: 4),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryDark)),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 10, color: AppColors.textSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RecommendedPlantCard extends StatelessWidget {
   final PlantTypeModel plant;
-  const _RecommendedPlantCard({required this.plant});
+  final _MatchLevel matchLevel;
+  const _RecommendedPlantCard(
+      {required this.plant, required this.matchLevel});
 
   @override
   Widget build(BuildContext context) {
@@ -615,22 +993,52 @@ class _RecommendedPlantCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(plant.name, style: AppTextStyles.headingSmall),
-                    const SizedBox(height: 2),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.successLight,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        'Kesulitan: ${plant.difficulty}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.success,
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.successLight,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'Kesulitan: ${plant.difficulty}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.success,
+                            ),
+                          ),
                         ),
-                      ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: matchLevel == _MatchLevel.both
+                                ? AppColors.primary
+                                : AppColors.accentDeep,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            matchLevel == _MatchLevel.both
+                                ? '⭐ Cocok cuaca & bulan'
+                                : matchLevel == _MatchLevel.weatherOnly
+                                    ? '🌡️ Cocok cuaca'
+                                    : '📅 Cocok bulan ini',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: matchLevel == _MatchLevel.both
+                                  ? Colors.white
+                                  : AppColors.primaryDark,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -690,7 +1098,8 @@ class _RecommendedPlantCard extends StatelessWidget {
 
 class _CalendarTab extends StatefulWidget {
   final List<PlantTypeModel> plantTypes;
-  const _CalendarTab({required this.plantTypes});
+  final List<ForecastDayModel> forecast;
+  const _CalendarTab({required this.plantTypes, required this.forecast});
 
   @override
   State<_CalendarTab> createState() => _CalendarTabState();
@@ -710,6 +1119,8 @@ class _CalendarTabState extends State<_CalendarTab> {
         .where((p) => p.bestMonths.contains(_selectedMonth))
         .toList();
 
+    final isCurrentMonth = _selectedMonth == DateTime.now().month;
+
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -719,6 +1130,10 @@ class _CalendarTabState extends State<_CalendarTab> {
           months: _months,
         ),
         const SizedBox(height: 20),
+        if (isCurrentMonth && widget.forecast.isNotEmpty) ...[
+          _CalendarForecastCard(forecast: widget.forecast),
+          const SizedBox(height: 20),
+        ],
         Text(
           'Cocok Ditanam di ${_months[_selectedMonth - 1]}',
           style: AppTextStyles.headingSmall,
@@ -854,6 +1269,94 @@ class _CalendarPlantTile extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarForecastCard extends StatelessWidget {
+  final List<ForecastDayModel> forecast;
+  const _CalendarForecastCard({required this.forecast});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE8E0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '🌤️ Prakiraan 5 Hari ke Depan',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: forecast.map((f) {
+              final isRainy = f.rainProbability >= 60;
+              return Expanded(
+                child: Column(
+                  children: [
+                    Text(f.dayLabel,
+                        style: const TextStyle(
+                            fontSize: 10, color: AppColors.textHint)),
+                    const SizedBox(height: 4),
+                    Text(f.conditionEmoji,
+                        style: const TextStyle(fontSize: 18)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${f.maxTemp.toStringAsFixed(0)}°',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary),
+                    ),
+                    if (isRainy)
+                      Text(
+                        '${f.rainProbability.toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                            fontSize: 10, color: AppColors.info),
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          Builder(builder: (_) {
+            final avgRain =
+                forecast.map((f) => f.rainProbability).reduce((a, b) => a + b) /
+                    forecast.length;
+            final avgMax =
+                forecast.map((f) => f.maxTemp).reduce((a, b) => a + b) /
+                    forecast.length;
+            String hint;
+            if (avgRain >= 60) {
+              hint =
+                  'Peluang hujan tinggi minggu ini. Kurangi penyiraman manual dan pastikan drainase lancar.';
+            } else if (avgMax >= 33) {
+              hint =
+                  'Suhu cukup panas minggu ini. Siram pagi hari dan pertimbangkan shade net untuk tanaman sensitif.';
+            } else {
+              hint =
+                  'Cuaca relatif ideal minggu ini. Waktu yang bagus untuk menanam atau memindahkan bibit.';
+            }
+            return Text(hint,
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary, height: 1.5));
+          }),
         ],
       ),
     );

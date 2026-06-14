@@ -296,7 +296,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
                     )
                   : Text(
-                      name.isNotEmpty ? name : '—',
+                      name.isNotEmpty ? name : '-',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,

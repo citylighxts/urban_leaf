@@ -368,7 +368,7 @@ class PlantTypeService {
     return snap.docs.map((d) => PlantTypeModel.fromMap(d.data())).toList();
   }
 
-  /// Seeds — or re-seeds when the existing data is missing the new agronomic
+  /// Seeds - or re-seeds when the existing data is missing the new agronomic
   /// fields (detected by absence of 'difficulty' on the first document).
   Future<void> seedIfEmpty() async {
     final snap = await _db.collection(_collection).limit(1).get();
