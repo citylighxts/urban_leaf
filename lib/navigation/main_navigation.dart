@@ -16,7 +16,7 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  // AI Scanner (index 2) is pushed as a modal — kept here only so
+  // AI Scanner (index 2) is pushed as a modal - kept here only so
   // IndexedStack stays in sync with the 5 nav items.
   final List<Widget> _pages = const [
     HomePage(),
@@ -37,7 +37,7 @@ class _MainNavigationState extends State<MainNavigation> {
         currentIndex: _currentIndex,
         onTap: (index) {
           if (index == 2) {
-            // AI Scanner — push as modal sheet for better UX
+            // AI Scanner - push as modal sheet for better UX
             Navigator.of(context).push(
               PageRouteBuilder(
                 pageBuilder: (_, _, _) => const AiScannerPage(),

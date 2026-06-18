@@ -81,7 +81,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
             nextWatering: now.add(const Duration(hours: 24)),
             lastWateredAt: now,
             careHistory: [
-              'Disiram — ${_formatDateTime(now)}',
+              'Disiram - ${_formatDateTime(now)}',
               ..._plant.careHistory,
             ],
           );

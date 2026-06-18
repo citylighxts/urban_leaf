@@ -47,6 +47,48 @@ class WeatherService {
     return result;
   }
 
+  /// Fetch weather for a fixed coordinate pair, bypassing GPS.
+  /// Uses the same Firestore cache keyed by rounded lat/lng.
+  Future<WeatherResult> fetchWeatherForCoords(
+    double lat,
+    double lng,
+    String locationName, {
+    bool forceRefresh = false,
+  }) async {
+    // Reuse _memCache only when it's for the same location name.
+    if (!forceRefresh &&
+        _memCache != null &&
+        _memCacheTime != null &&
+        _memCache!.current.location == locationName &&
+        DateTime.now().difference(_memCacheTime!) < _cacheTtl) {
+      return _memCache!;
+    }
+    // Build a fake Position so we can reuse _readCache / _writeCache.
+    final fakePos = Position(
+      latitude: lat,
+      longitude: lng,
+      timestamp: DateTime.now(),
+      accuracy: 0,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
+    final cached = forceRefresh ? null : await _readCache(fakePos);
+    if (cached != null) {
+      _memCache = cached;
+      _memCacheTime = DateTime.now();
+      return cached;
+    }
+    final result = await _fetchFromApi(fakePos, locationName);
+    _memCache = result;
+    _memCacheTime = DateTime.now();
+    _writeCache(fakePos, result);
+    return result;
+  }
+
   // ─── Cache ────────────────────────────────────────────────────────────────
 
   // Round to 2 decimal places → ~1.1 km grid cell

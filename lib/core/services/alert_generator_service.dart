@@ -50,7 +50,7 @@ class AlertGeneratorService {
         id: 'auto_heat_${now.millisecondsSinceEpoch}',
         type: AlertType.heatStress,
         severity: severity,
-        title: 'Heat Stress — Suhu ${weather.temperature.toStringAsFixed(0)}°C',
+        title: 'Heat Stress - Suhu ${weather.temperature.toStringAsFixed(0)}°C',
         description:
             'Suhu hari ini mencapai ${weather.temperature.toStringAsFixed(0)}°C '
             '(terasa ${weather.feelsLike.toStringAsFixed(0)}°C). '
@@ -90,7 +90,7 @@ class AlertGeneratorService {
         type: AlertType.fungusRisk,
         severity: severity,
         title:
-            'Risiko Jamur Tinggi — Kelembapan ${weather.humidity.toStringAsFixed(0)}%',
+            'Risiko Jamur Tinggi - Kelembapan ${weather.humidity.toStringAsFixed(0)}%',
         description:
             'Kelembapan udara mencapai ${weather.humidity.toStringAsFixed(0)}% '
             'dan probabilitas hujan esok hari ${nextDayRainProb.toStringAsFixed(0)}%. '
@@ -115,7 +115,7 @@ class AlertGeneratorService {
         type: AlertType.uvHigh,
         severity: severity,
         title:
-            'UV Index ${weather.uvIndex.toStringAsFixed(1)} — ${weather.uvLabel}',
+            'UV Index ${weather.uvIndex.toStringAsFixed(1)} - ${weather.uvLabel}',
         description:
             'UV Index mencapai ${weather.uvIndex.toStringAsFixed(1)} (${weather.uvLabel}) '
             'antara pukul 10:00–14:00. '
@@ -140,7 +140,7 @@ class AlertGeneratorService {
         type: AlertType.heavyRain,
         severity: AlertSeverity.medium,
         title:
-            'Hujan Lebat Diprediksi — ${heavyRainDay.first.precipitation.toStringAsFixed(0)}mm',
+            'Hujan Lebat Diprediksi - ${heavyRainDay.first.precipitation.toStringAsFixed(0)}mm',
         description:
             'Curah hujan ${heavyRainDay.first.precipitation.toStringAsFixed(0)}mm '
             'diprediksi dalam $days hari ke depan (${heavyRainDay.first.dayLabel}). '
@@ -173,7 +173,7 @@ class AlertGeneratorService {
         id: 'auto_drought_${now.millisecondsSinceEpoch}',
         type: AlertType.drought,
         severity: AlertSeverity.medium,
-        title: 'Risiko Kekeringan — $dryDays Hari Tanpa Hujan',
+        title: 'Risiko Kekeringan - $dryDays Hari Tanpa Hujan',
         description:
             'Tidak ada hujan diprediksi selama $dryDays hari ke depan '
             'dengan kelembapan ${weather.humidity.toStringAsFixed(0)}%. '
@@ -189,7 +189,7 @@ class AlertGeneratorService {
     }
 
     // ── 6. Per-plant tolerance check ─────────────────────────────────────
-    // Only flags healthy plants — quarantine/needsAttention are already known.
+    // Only flags healthy plants - quarantine/needsAttention are already known.
     final plantIdsToFlag = <String>[];
     for (final plant in plants.where((p) => p.status == PlantStatus.healthy)) {
       final tempOut = weather.temperature < plant.minTemp || weather.temperature > plant.maxTemp;
@@ -218,7 +218,7 @@ class AlertGeneratorService {
         id: 'tolerance_${plant.id}_${now.millisecondsSinceEpoch}',
         type: AlertType.toleranceExceeded,
         severity: AlertSeverity.high,
-        title: '${plant.emoji} ${plant.name} — Kondisi di Luar Toleransi',
+        title: '${plant.emoji} ${plant.name} - Kondisi di Luar Toleransi',
         description:
             '${plant.name} mengalami ${issues.join(' dan ')} '
             'yang melebihi batas toleransinya.',

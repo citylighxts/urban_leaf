@@ -25,6 +25,33 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+// ── Preset location ────────────────────────────────────────────────────────
+
+class _LocationOption {
+  final String name;
+  final double lat;
+  final double lng;
+  const _LocationOption(this.name, this.lat, this.lng);
+}
+
+const _kCities = [
+  _LocationOption('Jakarta Pusat', -6.2088, 106.8456),
+  _LocationOption('Surabaya', -7.2575, 112.7521),
+  _LocationOption('Bandung', -6.9175, 107.6191),
+  _LocationOption('Medan', 3.5952, 98.6722),
+  _LocationOption('Makassar', -5.1477, 119.4327),
+  _LocationOption('Semarang', -6.9932, 110.4203),
+  _LocationOption('Yogyakarta', -7.7956, 110.3695),
+  _LocationOption('Palembang', -2.9761, 104.7754),
+  _LocationOption('Tangerang', -6.1781, 106.6300),
+  _LocationOption('Depok', -6.4025, 106.7942),
+  _LocationOption('Bekasi', -6.2383, 106.9756),
+  _LocationOption('Bogor', -6.5971, 106.8060),
+  _LocationOption('Denpasar', -8.6705, 115.2126),
+  _LocationOption('Balikpapan', -1.2675, 116.8289),
+  _LocationOption('Banjarmasin', -3.3194, 114.5900),
+];
+
 class _HomePageState extends State<HomePage> {
   final _plantService = PlantFirestoreService();
   final _alertService = AlertFirestoreService();
@@ -37,6 +64,9 @@ class _HomePageState extends State<HomePage> {
   String? _weatherError;
   bool _alertsGenerated = false;
   StreamSubscription<List<AlertModel>>? _alertSub;
+
+  // null = use GPS; non-null = use preset city
+  _LocationOption? _selectedLocation;
 
   @override
   void initState() {
@@ -59,7 +89,17 @@ class _HomePageState extends State<HomePage> {
       _weatherError = null;
     });
     try {
-      final result = await _weatherService.fetchWeather(forceRefresh: forceRefresh);
+      final WeatherResult result;
+      if (_selectedLocation != null) {
+        result = await _weatherService.fetchWeatherForCoords(
+          _selectedLocation!.lat,
+          _selectedLocation!.lng,
+          _selectedLocation!.name,
+          forceRefresh: forceRefresh,
+        );
+      } else {
+        result = await _weatherService.fetchWeather(forceRefresh: forceRefresh);
+      }
       if (!mounted) return;
       setState(() {
         _weather = result.current;
@@ -77,6 +117,24 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _onRefresh() => _loadWeather(forceRefresh: true);
+
+  void _showLocationPicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LocationPickerSheet(
+        selected: _selectedLocation,
+        onSelect: (loc) {
+          setState(() {
+            _selectedLocation = loc;
+            _alertsGenerated = false;
+          });
+          _loadWeather(forceRefresh: true);
+        },
+      ),
+    );
+  }
 
   void _regenerateAlerts(List<PlantModel> plants) {
     if (_weather == null) return;
@@ -120,7 +178,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _markAlertHandled(String id) {
-    // State dikendalikan stream Firestore — cukup update Firestore.
+    // State dikendalikan stream Firestore - cukup update Firestore.
     _alertService.updateStatus(id, AlertStatus.handled).catchError((_) {});
   }
 
@@ -168,6 +226,13 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 4),
+                      // ── Location Picker ──
+                      _LocationPill(
+                        label: _selectedLocation?.name ?? 'Lokasi Saat Ini',
+                        isGps: _selectedLocation == null,
+                        onTap: _showLocationPicker,
+                      ),
+                      const SizedBox(height: 10),
                       // ── Weather Card ──
                       if (_weatherLoading)
                         _WeatherLoading()
@@ -339,30 +404,253 @@ class _HomePageState extends State<HomePage> {
       ),
       actions: [
         IconButton(
-          onPressed: () {},
+          onPressed: () => _showNotificationsSheet(),
           icon: Stack(
             children: [
               const Icon(
                 Icons.notifications_rounded,
                 color: AppColors.textPrimary,
               ),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.danger,
-                    shape: BoxShape.circle,
+              if (_alerts.any((a) => a.status == AlertStatus.active))
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppColors.danger,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
         const SizedBox(width: 4),
       ],
+    );
+  }
+
+  void _showNotificationsSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AlertsSheet(
+        alerts: _alerts,
+        onMarkHandled: _markAlertHandled,
+        onDismiss: _dismissAlert,
+        onClearOld: _clearOldAlerts,
+      ),
+    );
+  }
+}
+
+// ── Location Pill ─────────────────────────────────────────────────────────
+
+class _LocationPill extends StatelessWidget {
+  final String label;
+  final bool isGps;
+  final VoidCallback onTap;
+  const _LocationPill(
+      {required this.label, required this.isGps, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFDDE8E0)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isGps ? Icons.my_location_rounded : Icons.location_on_rounded,
+              size: 14,
+              color: AppColors.primary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                size: 16, color: AppColors.textHint),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Location Picker Sheet ──────────────────────────────────────────────────
+
+class _LocationPickerSheet extends StatelessWidget {
+  final _LocationOption? selected;
+  final ValueChanged<_LocationOption?> onSelect;
+  const _LocationPickerSheet(
+      {required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.4,
+      maxChildSize: 0.85,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDDE8E0),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Pilih Lokasi',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  // GPS option
+                  _LocationTile(
+                    icon: Icons.my_location_rounded,
+                    name: 'Lokasi Saat Ini',
+                    subtitle: 'Menggunakan GPS perangkat',
+                    isSelected: selected == null,
+                    onTap: () {
+                      Navigator.pop(context);
+                      onSelect(null);
+                    },
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'KOTA LAINNYA',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textHint,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                  ..._kCities.map((city) => _LocationTile(
+                        icon: Icons.location_on_rounded,
+                        name: city.name,
+                        subtitle:
+                            '${city.lat.toStringAsFixed(2)}°, ${city.lng.toStringAsFixed(2)}°',
+                        isSelected: selected?.name == city.name,
+                        onTap: () {
+                          Navigator.pop(context);
+                          onSelect(city);
+                        },
+                      )),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LocationTile extends StatelessWidget {
+  final IconData icon;
+  final String name;
+  final String subtitle;
+  final bool isSelected;
+  final VoidCallback onTap;
+  const _LocationTile({
+    required this.icon,
+    required this.name,
+    required this.subtitle,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.accent : AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : const Color(0xFFE8F0EA),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 20,
+                color: isSelected ? AppColors.primary : AppColors.textHint),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.textHint)),
+                ],
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle_rounded,
+                  color: AppColors.primary, size: 18),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -602,6 +890,494 @@ class _UrgentPlantCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Alerts Bottom Sheet ────────────────────────────────────────────────────
+
+class _AlertsSheet extends StatefulWidget {
+  final List<AlertModel> alerts;
+  final ValueChanged<String> onMarkHandled;
+  final ValueChanged<String> onDismiss;
+  final VoidCallback onClearOld;
+
+  const _AlertsSheet({
+    required this.alerts,
+    required this.onMarkHandled,
+    required this.onDismiss,
+    required this.onClearOld,
+  });
+
+  @override
+  State<_AlertsSheet> createState() => _AlertsSheetState();
+}
+
+class _AlertsSheetState extends State<_AlertsSheet>
+    with SingleTickerProviderStateMixin {
+  late TabController _tab;
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
+
+  Color _severityColor(AlertSeverity s) {
+    switch (s) {
+      case AlertSeverity.critical:
+        return AppColors.danger;
+      case AlertSeverity.high:
+        return AppColors.warning;
+      case AlertSeverity.medium:
+        return const Color(0xFF0D6EFD);
+      case AlertSeverity.low:
+        return AppColors.textHint;
+    }
+  }
+
+  Color _severityBg(AlertSeverity s) {
+    switch (s) {
+      case AlertSeverity.critical:
+        return AppColors.dangerLight;
+      case AlertSeverity.high:
+        return AppColors.warningLight;
+      case AlertSeverity.medium:
+        return AppColors.infoLight;
+      case AlertSeverity.low:
+        return AppColors.surfaceVariant;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final active = widget.alerts
+        .where((a) => a.status == AlertStatus.active)
+        .toList()
+      ..sort((a, b) => b.severity.index.compareTo(a.severity.index));
+    final history = widget.alerts
+        .where((a) => a.status != AlertStatus.active)
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDDE8E0),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Notifikasi',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  if (history.isNotEmpty)
+                    TextButton(
+                      onPressed: () {
+                        widget.onClearOld();
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        'Hapus riwayat',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textHint,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // Tabs
+            TabBar(
+              controller: _tab,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: AppColors.textHint,
+              indicatorColor: AppColors.primary,
+              indicatorWeight: 2,
+              labelStyle: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600),
+              tabs: [
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Aktif'),
+                      if (active.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.danger,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${active.length}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Tab(text: 'Riwayat'),
+              ],
+            ),
+            // Content
+            Expanded(
+              child: TabBarView(
+                controller: _tab,
+                children: [
+                  // ── Tab aktif ──
+                  active.isEmpty
+                      ? const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('✅', style: TextStyle(fontSize: 40)),
+                              SizedBox(height: 12),
+                              Text(
+                                'Tidak ada peringatan aktif',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Kebunmu aman saat ini',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textHint,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: controller,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: active.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (_, i) =>
+                              _AlertTile(
+                            alert: active[i],
+                            severityColor:
+                                _severityColor(active[i].severity),
+                            severityBg: _severityBg(active[i].severity),
+                            onMarkHandled: () =>
+                                widget.onMarkHandled(active[i].id),
+                            onDismiss: () =>
+                                widget.onDismiss(active[i].id),
+                          ),
+                        ),
+                  // ── Tab riwayat ──
+                  history.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Belum ada riwayat peringatan',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textHint,
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: controller,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: history.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (_, i) => _AlertHistoryTile(
+                            alert: history[i],
+                            severityBg: _severityBg(history[i].severity),
+                          ),
+                        ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AlertTile extends StatelessWidget {
+  final AlertModel alert;
+  final Color severityColor;
+  final Color severityBg;
+  final VoidCallback onMarkHandled;
+  final VoidCallback onDismiss;
+
+  const _AlertTile({
+    required this.alert,
+    required this.severityColor,
+    required this.severityBg,
+    required this.onMarkHandled,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: severityColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: severityBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Text(alert.typeEmoji,
+                      style: const TextStyle(fontSize: 18)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      alert.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(alert.plantEmoji,
+                            style: const TextStyle(fontSize: 11)),
+                        const SizedBox(width: 4),
+                        Text(
+                          alert.plantName,
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.textHint),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: severityBg,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            alert.severityLabel,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: severityColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            alert.description,
+            style: const TextStyle(
+                fontSize: 12, color: AppColors.textSecondary, height: 1.5),
+          ),
+          if (alert.actionRequired.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Text('💡', style: TextStyle(fontSize: 12)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      alert.actionRequired,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onDismiss,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    side: const BorderSide(color: Color(0xFFDDE8E0)),
+                    foregroundColor: AppColors.textHint,
+                  ),
+                  child: const Text('Abaikan',
+                      style: TextStyle(fontSize: 12)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onMarkHandled,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('Sudah Ditangani',
+                      style: TextStyle(fontSize: 12)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlertHistoryTile extends StatelessWidget {
+  final AlertModel alert;
+  final Color severityBg;
+
+  const _AlertHistoryTile(
+      {required this.alert, required this.severityBg});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE8F0EA)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: severityBg,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child:
+                  Text(alert.typeEmoji, style: const TextStyle(fontSize: 16)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  alert.title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${alert.plantEmoji} ${alert.plantName}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textHint),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: alert.status == AlertStatus.handled
+                  ? AppColors.successLight
+                  : AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              alert.statusLabel,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: alert.status == AlertStatus.handled
+                    ? AppColors.success
+                    : AppColors.textHint,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
