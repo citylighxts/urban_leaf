@@ -1,4 +1,4 @@
-enum DiseaseSeverity { mild, moderate, severe }
+// enum DiseaseSeverity { mild, moderate, severe }
 enum DiagnosisStatus { active, recovering, resolved }
 
 class DiagnosisModel {
@@ -8,7 +8,7 @@ class DiagnosisModel {
   final String plantEmoji;
   final String diseaseName;
   final String diseaseNameEn;
-  final DiseaseSeverity severity;
+  // final DiseaseSeverity severity;
   final DiagnosisStatus diagnosisStatus;
   final double confidence;
   final String description;
@@ -16,6 +16,8 @@ class DiagnosisModel {
   final List<String> preventionTips;
   final DateTime diagnosedAt;
   final DateTime? updatedAt;
+  final String? imagePath; 
+  final bool isManual;
 
   const DiagnosisModel({
     required this.id,
@@ -24,7 +26,7 @@ class DiagnosisModel {
     required this.plantEmoji,
     required this.diseaseName,
     required this.diseaseNameEn,
-    required this.severity,
+    // required this.severity,
     required this.diagnosisStatus,
     required this.confidence,
     required this.description,
@@ -32,18 +34,20 @@ class DiagnosisModel {
     required this.preventionTips,
     required this.diagnosedAt,
     this.updatedAt,
+    this.imagePath,        
+    this.isManual = false,
   });
 
-  String get severityLabel {
-    switch (severity) {
-      case DiseaseSeverity.mild:
-        return 'Ringan';
-      case DiseaseSeverity.moderate:
-        return 'Sedang';
-      case DiseaseSeverity.severe:
-        return 'Parah';
-    }
-  }
+  // String get severityLabel {
+  //   switch (severity) {
+  //     case DiseaseSeverity.mild:
+  //       return 'Ringan';
+  //     case DiseaseSeverity.moderate:
+  //       return 'Sedang';
+  //     case DiseaseSeverity.severe:
+  //       return 'Parah';
+  //   }
+  // }
 
   String get statusLabel {
     switch (diagnosisStatus) {
@@ -58,7 +62,7 @@ class DiagnosisModel {
 
   String get confidenceLabel => '${(confidence * 100).toStringAsFixed(0)}%';
 
-  DiagnosisModel copyWith({DiagnosisStatus? diagnosisStatus, DateTime? updatedAt}) {
+  DiagnosisModel copyWith({DiagnosisStatus? diagnosisStatus, DateTime? updatedAt, String? imagePath, required String diseaseName, required String description, required List<String> solutions,}) {
     return DiagnosisModel(
       id: id,
       plantId: plantId,
@@ -66,7 +70,7 @@ class DiagnosisModel {
       plantEmoji: plantEmoji,
       diseaseName: diseaseName,
       diseaseNameEn: diseaseNameEn,
-      severity: severity,
+      // severity: severity,
       diagnosisStatus: diagnosisStatus ?? this.diagnosisStatus,
       confidence: confidence,
       description: description,
@@ -74,6 +78,8 @@ class DiagnosisModel {
       preventionTips: preventionTips,
       diagnosedAt: diagnosedAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      imagePath: imagePath ?? this.imagePath, // Tambahkan ini
+      isManual: isManual,
     );
   }
 
@@ -83,7 +89,7 @@ class DiagnosisModel {
         'plantEmoji': plantEmoji,
         'diseaseName': diseaseName,
         'diseaseNameEn': diseaseNameEn,
-        'severity': severity.name,
+        // 'severity': severity.name,
         'diagnosisStatus': diagnosisStatus.name,
         'confidence': confidence,
         'description': description,
@@ -91,6 +97,8 @@ class DiagnosisModel {
         'preventionTips': preventionTips,
         'diagnosedAt': diagnosedAt.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
+        'imagePath': imagePath,   
+        'isManual': isManual,
       };
 
   factory DiagnosisModel.fromMap(Map<String, dynamic> map, String id) => DiagnosisModel(
@@ -100,7 +108,7 @@ class DiagnosisModel {
         plantEmoji: map['plantEmoji'] as String,
         diseaseName: map['diseaseName'] as String,
         diseaseNameEn: map['diseaseNameEn'] as String,
-        severity: DiseaseSeverity.values.firstWhere((e) => e.name == map['severity']),
+        // severity: DiseaseSeverity.values.firstWhere((e) => e.name == map['severity']),
         diagnosisStatus: DiagnosisStatus.values.firstWhere(
             (e) => e.name == map['diagnosisStatus']),
         confidence: (map['confidence'] as num).toDouble(),
@@ -111,5 +119,7 @@ class DiagnosisModel {
         updatedAt: map['updatedAt'] != null
             ? DateTime.parse(map['updatedAt'] as String)
             : null,
+        imagePath: map['imagePath'] as String?, // <--- Tambahkan ini
+        isManual: map['isManual'] as bool? ?? false, // <--- Tamba
       );
 }

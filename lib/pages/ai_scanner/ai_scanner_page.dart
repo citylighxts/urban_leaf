@@ -10,6 +10,7 @@ import '../../services/diagnosis_firestore_service.dart';
 import '../../services/plant_firestore_service.dart';
 import '../../main.dart'; 
 import '../../services/ai_scan_service.dart';
+import 'manual_diagnosis_page.dart';
 
 class AiScannerPage extends StatefulWidget {
   const AiScannerPage({super.key});
@@ -88,6 +89,46 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
       _cameraController = null;
     }
   }
+  Future<void> _runAiAnalysis() async {
+    if (_imageFile == null) return;
+
+    setState(() => _scanState = _ScanState.analyzing);
+
+    try {
+      final aiResult = await _aiScanService.predictImage(_imageFile!.path);
+      if (!mounted) return;
+
+      if (aiResult != null) {
+        final detailPenyakit = aiResult['detailPenyakit'] as Map<String, dynamic>?;
+
+        setState(() {
+          _scanState = _ScanState.result;
+          _result = DiagnosisModel(
+            id: DateTime.now().millisecondsSinceEpoch.toString(), 
+            plantId: '',          
+            plantName: '',         
+            plantEmoji: '',        
+            diseaseName: detailPenyakit?['diseaseName'] ?? aiResult['diseaseName'].toString(),
+            diseaseNameEn: detailPenyakit?['diseaseNameEn'] ?? aiResult['diseaseName'].toString(),
+            // severity: DiseaseSeverity.moderate, 
+            diagnosisStatus: DiagnosisStatus.active,
+            confidence: (aiResult['confidence'] as num).toDouble(),
+            description: detailPenyakit?['description'] ?? 'Detail analisis tidak tersedia.',
+            solutions: List<String>.from(detailPenyakit?['solutions'] ?? ['Pantau sirkulasi air harian.']),
+            preventionTips: List<String>.from(detailPenyakit?['preventionTips'] ?? ['Jaga sanitasi area pot.']),
+            diagnosedAt: DateTime.now(),
+            imagePath: _imageFile!.path,
+            isManual: false,
+          );
+        });
+      } else {
+        _resetScan();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal menganalisis.')));
+      }
+    } catch (e) {
+      _resetScan();
+    }
+  }
 
   @override
   void dispose() {
@@ -96,8 +137,38 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
     _aiScanService.dispose();
     super.dispose();
   }
-
-  // Aksi tombol potret instan dari live preview kamera
+  
+  // Tambahkan logika ini di _takeScan / _pickFromGallery setelah _imageFile terisi
+  void _showOptionsDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0F2018),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.psychology, color: Colors.greenAccent),
+            title: const Text("Scan dengan AI", style: TextStyle(color: Colors.white)),
+            onTap: () {
+              Navigator.pop(context);
+              _runAiAnalysis(); // Panggil fungsi AI yang baru (lihat poin 4)
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.edit, color: Colors.blueAccent),
+            title: const Text("Input Manual", style: TextStyle(color: Colors.white)),
+            onTap: () {
+              Navigator.pop(context);
+              // Pindah ke halaman ManualDiagnosisPage (yang sudah kita bahas tadi)
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => ManualDiagnosisPage(imageFile: _imageFile!),
+              ));
+            },
+          ),
+        ],
+      ),
+    );
+  }
   // Aksi tombol potret instan dari live preview kamera
   void _takeScan() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
@@ -111,11 +182,13 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
       
       setState(() {
         _imageFile = File(photo.path);
-        _scanState = _ScanState.analyzing;
+        // _scanState = _ScanState.analyzing;
+        _scanState = _ScanState.preview;
       });
 
     
       await _disposeCamera();
+      _showOptionsDialog();
 
       await Future.delayed(const Duration(milliseconds: 500));
 
@@ -130,40 +203,7 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
       }
 
       print("📸 DEBUG: Mencoba memproses file di path: ${_imageFile?.path}");
-      final aiResult = await _aiScanService.predictImage(_imageFile!.path);
-      await Future.delayed(const Duration(milliseconds: 300)); 
-
-      if (!mounted) return;
-
-      if (aiResult != null) {
-        String originalLabel = aiResult['diseaseName'].toString();
-   
-        final detailPenyakit = aiResult['detailPenyakit'] as Map<String, dynamic>?;
-
-        setState(() {
-          _scanState = _ScanState.result;
-          _result = DiagnosisModel(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            plantId: '',
-            plantName: '',
-            plantEmoji: '',
-            diseaseName: detailPenyakit?['diseaseName'] ?? originalLabel,
-            diseaseNameEn: detailPenyakit?['diseaseNameEn'] ?? originalLabel,
-            severity: DiseaseSeverity.moderate,
-            diagnosisStatus: DiagnosisStatus.active,
-            confidence: aiResult['confidence'] as double,
-            description: detailPenyakit?['description'] ?? 'Detail analisis gejala tidak tersedia.',
-            solutions: List<String>.from(detailPenyakit?['solutions'] ?? ['Pantau sirkulasi air tanaman harian.']),
-            preventionTips: List<String>.from(detailPenyakit?['preventionTips'] ?? ['Jaga sanitasi kebersihan area pot.']),
-            diagnosedAt: DateTime.now(),
-          );
-        });
-      } else {
-        _resetScan();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal menganalisis daun tanaman. Silakan coba lagi.')),
-        );
-      }
+      
     } catch (e) {
       _resetScan();
       print("Error saat mengambil gambar: $e");
@@ -186,43 +226,10 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
 
       setState(() {
         _imageFile = File(photo.path);
-        _scanState = _ScanState.analyzing;
+        // _scanState = _ScanState.analyzing;
+        _scanState = _ScanState.preview;
       });
-
-      // 2. Berikan jeda waktu agar file dari galeri selesai di-cache oleh sistem Flutter
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      final aiResult = await _aiScanService.predictImage(_imageFile!.path);
-      if (!mounted) return;
-
-      if (aiResult != null) {
-        String dynamicLabel = aiResult['diseaseName'].toString();
-        final detailPenyakit = aiResult['detailPenyakit'] as Map<String, dynamic>?;
-
-        setState(() {
-          _scanState = _ScanState.result;
-          _result = DiagnosisModel(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            plantId: '',
-            plantName: '',
-            plantEmoji: '',
-            diseaseName: detailPenyakit?['diseaseName'] ?? dynamicLabel,
-            diseaseNameEn: detailPenyakit?['diseaseNameEn'] ?? dynamicLabel,
-            severity: DiseaseSeverity.moderate,
-            diagnosisStatus: DiagnosisStatus.active,
-            confidence: aiResult['confidence'] as double,
-            description: detailPenyakit?['description'] ?? 'Detail deskripsi tidak tersedia.',
-            solutions: List<String>.from(detailPenyakit?['solutions'] ?? ['Isolasi pot tanaman segera.']),
-            preventionTips: List<String>.from(detailPenyakit?['preventionTips'] ?? ['Hindari kelembapan berlebih.']),
-            diagnosedAt: DateTime.now(),
-          );
-        });
-      } else {
-        _resetScan();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal memproses gambar dari galeri.')),
-        );
-      }
+      _showOptionsDialog();
     } catch (e) {
       _resetScan();
       print("Error saat memproses galeri: $e");
@@ -393,9 +400,9 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
   }
 }
 
-enum _ScanState { idle, scanning, analyzing, result }
+//enum _ScanState { idle, scanning, analyzing, result }
+enum _ScanState { idle, scanning, preview, analyzing, result }
 
-// ... Kode Widget Component _DiagnosisResult dan _SaveToPlatButton di bawahnya tetap biarkan utuh ...
 class _ScanInstructions extends StatelessWidget {
   final _ScanState state;
 
@@ -403,9 +410,11 @@ class _ScanInstructions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Tambahkan semua state ke dalam switch
     final title = switch (state) {
       _ScanState.idle => 'Siapkan daun tanaman untuk dipindai',
       _ScanState.scanning => 'Memindai daun... Tetap stabil',
+      _ScanState.preview => 'Pilih Metode Diagnosis', // Tambahkan ini
       _ScanState.analyzing => 'Analisis gambar sedang berlangsung',
       _ScanState.result => 'Hasil diagnosis siap ditampilkan',
     };
@@ -413,6 +422,7 @@ class _ScanInstructions extends StatelessWidget {
     final subtitle = switch (state) {
       _ScanState.idle => 'Ketuk tombol scan untuk mengambil foto atau pilih dari galeri.',
       _ScanState.scanning => 'Mengumpulkan detail visual sebelum menganalisis.',
+      _ScanState.preview => 'Gunakan AI Scanner atau Input Manual.', // Tambahkan ini
       _ScanState.analyzing => 'Tunggu sebentar, sistem sedang memproses gambar.',
       _ScanState.result => 'Lihat detail dan simpan riwayat penyakit jika diperlukan.',
     };
@@ -440,11 +450,11 @@ class _DiagnosisResult extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final severityColor = switch (diagnosis.severity) {
-      DiseaseSeverity.mild => AppColors.success,
-      DiseaseSeverity.moderate => AppColors.warning,
-      DiseaseSeverity.severe => AppColors.danger,
-    };
+    // final severityColor = switch (diagnosis.severity) {
+    //   DiseaseSeverity.mild => AppColors.success,
+    //   DiseaseSeverity.moderate => AppColors.warning,
+    //   DiseaseSeverity.severe => AppColors.danger,
+    // };
 
     return Container(
       decoration: const BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -569,7 +579,7 @@ class _DiagnosisResult extends StatelessWidget {
                                 plantEmoji: plant.emoji,
                                 diseaseName: diagnosis.diseaseName,
                                 diseaseNameEn: diagnosis.diseaseNameEn,
-                                severity: diagnosis.severity,
+                                // severity: diagnosis.severity,
                                 diagnosisStatus: diagnosis.diagnosisStatus,
                                 confidence: diagnosis.confidence,
                                 description: diagnosis.description,

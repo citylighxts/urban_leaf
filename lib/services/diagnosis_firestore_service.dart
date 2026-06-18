@@ -57,4 +57,22 @@ class DiagnosisFirestoreService {
   Future<void> deleteDiagnosis(String id) async {
     await _requireCol.doc(id).delete();
   }
+
+  // Pastikan ini di DiagnosisFirestoreService
+  Future<void> updateDiagnosis(DiagnosisModel diagnosis) async {
+    try {
+      print("Mencoba update diagnosa ID: ${diagnosis.id}");
+      
+      await _requireCol.doc(diagnosis.id).update({
+        'diseaseName': diagnosis.diseaseName,
+        'description': diagnosis.description,
+        'solutions': diagnosis.solutions,
+      });
+      
+      print("Update sukses!");
+    } catch (e) {
+      print("ERROR saat update: $e");
+      rethrow;
+    }
+  }
 }
