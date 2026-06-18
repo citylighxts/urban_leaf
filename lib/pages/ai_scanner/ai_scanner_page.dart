@@ -10,6 +10,7 @@ import '../../services/diagnosis_firestore_service.dart';
 import '../../services/plant_firestore_service.dart';
 import '../../main.dart'; 
 import '../../services/ai_scan_service.dart';
+import '../ai_scanner/manual_diagnosis_page.dart';
 
 class AiScannerPage extends StatefulWidget {
   const AiScannerPage({super.key});
@@ -89,6 +90,25 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
     }
   }
 
+  Future<void> _runAiAnalysis() async {
+  setState(() => _scanState = _ScanState.analyzing);
+    
+    try {
+      final aiResult = await _aiScanService.predictImage(_imageFile!.path);
+      if (!mounted) return;
+
+      if (aiResult != null) {
+        // ... (Isi logika setState result Anda yang lama di sini)
+        setState(() {
+          _scanState = _ScanState.result;
+          // ... set _result = DiagnosisModel(...)
+        });
+      }
+    } catch (e) {
+      _resetScan();
+    }
+  }
+
   @override
   void dispose() {
     _cameraController?.dispose();
@@ -97,7 +117,37 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
     super.dispose();
   }
 
-  // Aksi tombol potret instan dari live preview kamera
+  // Tambahkan logika ini di _takeScan / _pickFromGallery setelah _imageFile terisi
+  void _showOptionsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Pilih Metode"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text("Scan dengan AI"),
+              onTap: () {
+                Navigator.pop(context);
+                _runAiAnalysis(); // Pindahkan logika predictImage ke sini
+              },
+            ),
+            ListTile(
+              title: const Text("Input Manual"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => ManualDiagnosisPage(imageFile: _imageFile!),
+                ));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Aksi tombol potret instan dari live preview kamera
   void _takeScan() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
@@ -111,11 +161,13 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
       
       setState(() {
         _imageFile = File(photo.path);
-        _scanState = _ScanState.analyzing;
+        // _scanState = _ScanState.analyzing;
+        _scanState = _ScanState.preview; 
       });
 
     
       await _disposeCamera();
+      _showOptionsDialog();
 
       await Future.delayed(const Duration(milliseconds: 500));
 
@@ -156,6 +208,7 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
             solutions: List<String>.from(detailPenyakit?['solutions'] ?? ['Pantau sirkulasi air tanaman harian.']),
             preventionTips: List<String>.from(detailPenyakit?['preventionTips'] ?? ['Jaga sanitasi kebersihan area pot.']),
             diagnosedAt: DateTime.now(),
+            imagePath: _imageFile!.path,
           );
         });
       } else {
@@ -186,8 +239,13 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
 
       setState(() {
         _imageFile = File(photo.path);
-        _scanState = _ScanState.analyzing;
+        // _scanState = _ScanState.analyzing;
+        _scanState = _ScanState.preview;
+
       });
+
+      // await _disposeCamera();
+      _showOptionsDialog(); 
 
       // 2. Berikan jeda waktu agar file dari galeri selesai di-cache oleh sistem Flutter
       await Future.delayed(const Duration(milliseconds: 500));
@@ -215,6 +273,7 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
             solutions: List<String>.from(detailPenyakit?['solutions'] ?? ['Isolasi pot tanaman segera.']),
             preventionTips: List<String>.from(detailPenyakit?['preventionTips'] ?? ['Hindari kelembapan berlebih.']),
             diagnosedAt: DateTime.now(),
+            imagePath: _imageFile!.path,
           );
         });
       } else {
@@ -393,7 +452,7 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
   }
 }
 
-enum _ScanState { idle, scanning, analyzing, result }
+enum _ScanState { idle, scanning, preview, manualInput, analyzing, result }
 
 // ... Kode Widget Component _DiagnosisResult dan _SaveToPlatButton di bawahnya tetap biarkan utuh ...
 class _ScanInstructions extends StatelessWidget {
@@ -451,6 +510,21 @@ class _DiagnosisResult extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          
+          if (diagnosis.imagePath != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.file(
+                File(diagnosis.imagePath!),
+                height: 250,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            )
+          else
+            const Icon(Icons.image_not_supported, size: 100),
+    
+          const SizedBox(height: 16),
           // Bagian Tampilan Hasil Header Atas
           Container(
             padding: const EdgeInsets.all(16),
@@ -576,6 +650,7 @@ class _DiagnosisResult extends StatelessWidget {
                                 solutions: diagnosis.solutions,
                                 preventionTips: diagnosis.preventionTips,
                                 diagnosedAt: DateTime.now(),
+                                imagePath: diagnosis.imagePath,
                               ),
                             );
 

@@ -12,10 +12,12 @@ class DiagnosisModel {
   final DiagnosisStatus diagnosisStatus;
   final double confidence;
   final String description;
+  final String imagePath; // Tambahkan ini
   final List<String> solutions;
   final List<String> preventionTips;
   final DateTime diagnosedAt;
   final DateTime? updatedAt;
+  final bool isManual;
 
   const DiagnosisModel({
     required this.id,
@@ -31,7 +33,9 @@ class DiagnosisModel {
     required this.solutions,
     required this.preventionTips,
     required this.diagnosedAt,
+    required this.imagePath,
     this.updatedAt,
+    this.isManual = false,
   });
 
   String get severityLabel {
@@ -73,6 +77,7 @@ class DiagnosisModel {
       solutions: solutions,
       preventionTips: preventionTips,
       diagnosedAt: diagnosedAt,
+      imagePath: imagePath,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -91,6 +96,8 @@ class DiagnosisModel {
         'preventionTips': preventionTips,
         'diagnosedAt': diagnosedAt.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
+        'isManual': isManual,
+        'imagePath': imagePath,
       };
 
   factory DiagnosisModel.fromMap(Map<String, dynamic> map, String id) => DiagnosisModel(
@@ -108,6 +115,8 @@ class DiagnosisModel {
         solutions: List<String>.from(map['solutions'] as List),
         preventionTips: List<String>.from(map['preventionTips'] as List),
         diagnosedAt: DateTime.parse(map['diagnosedAt'] as String),
+        isManual: map['isManual'] as bool? ?? false,
+        imagePath: map['imagePath'] as String? ?? '',
         updatedAt: map['updatedAt'] != null
             ? DateTime.parse(map['updatedAt'] as String)
             : null,
