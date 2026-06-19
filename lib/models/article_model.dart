@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum ArticleCategory { tips, tutorial, weather, plant, pest }
 
 class ArticleModel {
@@ -50,20 +52,45 @@ class ArticleModel {
         'isFeatured': isFeatured,
       };
 
-  factory ArticleModel.fromMap(Map<String, dynamic> map) => ArticleModel(
-        id: map['id'] as String,
-        title: map['title'] as String,
-        subtitle: map['subtitle'] as String,
-        content: map['content'] as String? ?? '',
-        category: ArticleCategory.values.firstWhere(
-          (e) => e.name == map['category'],
-          orElse: () => ArticleCategory.tips,
-        ),
-        emoji: map['emoji'] as String,
-        readTime: map['readTime'] as String,
-        publishedAt: DateTime.fromMillisecondsSinceEpoch(
-          (map['publishedAt'] as num).toInt(),
-        ),
-        isFeatured: map['isFeatured'] as bool? ?? false,
+  factory ArticleModel.fromMap(
+    Map<String, dynamic> map, {
+    String? docId,
+  }) {
+    final publishedAtValue = map['publishedAt'];
+    DateTime parsedPublishedAt;
+
+    if (publishedAtValue is Timestamp) {
+      parsedPublishedAt = publishedAtValue.toDate();
+    } else if (publishedAtValue is DateTime) {
+      parsedPublishedAt = publishedAtValue;
+    } else if (publishedAtValue is int) {
+      parsedPublishedAt = DateTime.fromMillisecondsSinceEpoch(publishedAtValue);
+    } else if (publishedAtValue is String) {
+      parsedPublishedAt = DateTime.tryParse(publishedAtValue) ??
+          DateTime.fromMillisecondsSinceEpoch(
+            int.tryParse(publishedAtValue) ?? 0,
+          );
+    } else if (publishedAtValue is num) {
+      parsedPublishedAt = DateTime.fromMillisecondsSinceEpoch(
+        publishedAtValue.toInt(),
       );
+    } else {
+      parsedPublishedAt = DateTime.now();
+    }
+
+    return ArticleModel(
+      id: docId ?? (map['id'] as String? ?? ''),
+      title: (map['title'] as String?) ?? '',
+      subtitle: (map['subtitle'] as String?) ?? '',
+      content: (map['content'] as String?) ?? '',
+      category: ArticleCategory.values.firstWhere(
+        (e) => e.name == map['category'],
+        orElse: () => ArticleCategory.tips,
+      ),
+      emoji: (map['emoji'] as String?) ?? '📘',
+      readTime: (map['readTime'] as String?) ?? '0 menit',
+      publishedAt: parsedPublishedAt,
+      isFeatured: (map['isFeatured'] as bool?) ?? false,
+    );
+  }
 }

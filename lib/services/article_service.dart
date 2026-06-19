@@ -10,7 +10,9 @@ class ArticleService {
         .collection(_collection)
         .orderBy('publishedAt', descending: true)
         .get();
-    return snap.docs.map((d) => ArticleModel.fromMap(d.data())).toList();
+    return snap.docs
+        .map((d) => ArticleModel.fromMap(d.data(), docId: d.id))
+        .toList();
   }
 
   /// Seeds the collection only if it is empty.

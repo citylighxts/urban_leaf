@@ -12,11 +12,13 @@ import '../../models/plant_model.dart';
 import '../../models/weather_model.dart';
 import '../../services/alert_firestore_service.dart';
 import '../../services/plant_firestore_service.dart';
+import '../../services/plant_type_service.dart';
 import '../../widgets/common/section_title.dart';
 import '../../widgets/home/alert_banner_card.dart';
 import '../../widgets/home/garden_status_row.dart';
 import '../../widgets/home/weather_card.dart';
 import '../kebunku/plant_detail_page.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -76,6 +78,7 @@ class _HomePageState extends State<HomePage> {
     });
     _loadWeather();
   }
+
 
   @override
   void dispose() {

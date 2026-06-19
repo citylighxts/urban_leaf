@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:urban_leaf/models/diagnosis_model.dart';
 
 enum PlantStatus { healthy, needsAttention, quarantine }
-
 enum GrowingMethod { soil, hydroponic, aeroponic, container }
 
 class PlantModel {
@@ -186,7 +186,28 @@ class PlantModel {
     );
   }
 
+  // Tambahkan ini di dalam class PlantModel (bisa di bawah factory fromMap)
+  PlantStatus getEffectiveStatus(List<DiagnosisModel> diagnoses) {
+    if (diagnoses.isEmpty) return status; 
+
+    final sorted = List<DiagnosisModel>.from(diagnoses)
+      ..sort((a, b) => b.diagnosedAt.compareTo(a.diagnosedAt));
+    final latest = sorted.first;
+
+    // Jika diagnosa terakhir sudah 'resolved', kembalikan ke status asli (Sehat)
+    if (latest.diagnosisStatus == DiagnosisStatus.resolved) {
+      return PlantStatus.healthy;
+    }
+
+    return switch (latest.diagnosisStatus) {
+      DiagnosisStatus.active => PlantStatus.quarantine,
+      DiagnosisStatus.recovering => PlantStatus.needsAttention,
+      DiagnosisStatus.resolved => PlantStatus.healthy,
+    };
+  }
+
   PlantModel copyWith({
+    String? id,
     String? name,
     String? location,
     PlantStatus? status,
@@ -199,7 +220,7 @@ class PlantModel {
     String? notes,
   }) {
     return PlantModel(
-      id: id,
+      id: id ?? this.id,
       name: name ?? this.name,
       type: type,
       emoji: emoji,

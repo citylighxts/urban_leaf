@@ -133,7 +133,7 @@ class _UrbanLeafBottomNav extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'AI Scan',
+                        'Diagnosa',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,

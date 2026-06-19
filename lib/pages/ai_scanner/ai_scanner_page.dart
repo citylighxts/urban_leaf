@@ -157,12 +157,18 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
           ListTile(
             leading: const Icon(Icons.edit, color: Colors.blueAccent),
             title: const Text("Input Manual", style: TextStyle(color: Colors.white)),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(context);
-              // Pindah ke halaman ManualDiagnosisPage (yang sudah kita bahas tadi)
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => ManualDiagnosisPage(imageFile: _imageFile!),
-              ));
+              final result = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ManualDiagnosisPage(imageFile: _imageFile!),
+                ),
+              );
+
+              if (result == true && mounted) {
+                _resetScan();
+              }
             },
           ),
         ],
@@ -286,7 +292,7 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('AI Plant Scanner', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
+              const Text('Plant Scanner', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
               Text('Realtime Device Camera Stream', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11)),
             ],
           ),
@@ -571,40 +577,40 @@ class _DiagnosisResult extends StatelessWidget {
                           subtitle: Text(plant.type, style: const TextStyle(color: Colors.white38, fontSize: 12)),
                           trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white54),
                           onTap: () async {
-                            await _diagnosisService.addDiagnosis(
-                              DiagnosisModel(
-                                id: '',
-                                plantId: plant.id,
-                                plantName: plant.name,
-                                plantEmoji: plant.emoji,
-                                diseaseName: diagnosis.diseaseName,
-                                diseaseNameEn: diagnosis.diseaseNameEn,
-                                // severity: diagnosis.severity,
-                                diagnosisStatus: diagnosis.diagnosisStatus,
-                                confidence: diagnosis.confidence,
-                                description: diagnosis.description,
-                                solutions: diagnosis.solutions,
-                                preventionTips: diagnosis.preventionTips,
-                                diagnosedAt: DateTime.now(),
-                              ),
+                            // 1. Definisikan objek diagnosis-nya
+                            final newDiagnosis = DiagnosisModel(
+                              id: '',
+                              plantId: plant.id,
+                              plantName: plant.name,
+                              plantEmoji: plant.emoji,
+                              diseaseName: diagnosis.diseaseName,
+                              diseaseNameEn: diagnosis.diseaseNameEn,
+                              diagnosisStatus: diagnosis.diagnosisStatus,
+                              confidence: diagnosis.confidence,
+                              description: diagnosis.description,
+                              solutions: diagnosis.solutions,
+                              preventionTips: diagnosis.preventionTips,
+                              diagnosedAt: DateTime.now(),
                             );
 
-                            // Proses UPDATE dokumen tanaman di Firestore
-                            // Masukkan string hasil penyakit ke array lastDiagnosis milik dokumen tanaman tersebut
+                            // 2. PANGGIL DENGAN DUA PARAMETER (plant.id dan newDiagnosis)
+                            await _diagnosisService.addDiagnosis(plant.id, newDiagnosis);
+
+                            // 3. Proses UPDATE dokumen tanaman di Firestore
                             final updatedPlant = plant.copyWith(
-                              status: PlantStatus.quarantine, // Otomatis ubah status ke Karantina karena sakit
+                              status: PlantStatus.quarantine,
                               lastDiagnosis: diagnosis.diseaseName,
                             );
 
                             await firestoreService.updatePlant(updatedPlant);
 
                             if (context.mounted) {
-                              Navigator.pop(ctx); // Tutup Dialog BottomSheet
-                              Navigator.pop(context); // Keluar dari halaman Scanner kembali ke Beranda
+                              Navigator.pop(ctx); 
+                              Navigator.pop(context); 
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Berhasil memperbarui status medis tanaman ${plant.name} ke database!'),
-                                  backgroundColor: AppColors.success,
+                                  content: Text('Berhasil memperbarui status medis tanaman ${plant.name}!'),
+                                  backgroundColor: Colors.green, // Pastikan AppColors.success tersedia
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );

@@ -50,25 +50,43 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
   }
 
   Future<void> _loadPlantTypes() async {
+  // Pastikan status loading aktif saat proses berlangsung
+    if (mounted) setState(() => _typesLoading = true);
+    
     try {
+      // 1. Pastikan data master sudah ada di Firestore (Seed dulu)
+      await _plantTypeService.seedIfEmpty();
+      
+      // 2. Baru ambil datanya
       final types = await _plantTypeService.fetchAll();
+      
       if (!mounted) return;
+      
       setState(() {
         _plantTypes = types;
-        _typesLoading = false;
+        _typesLoading = false; // Loading selesai
+        
         if (_isEditing) {
           _selectedPlantType = types.where((t) => t.name == widget.plant!.type).firstOrNull;
         } else if (widget.preselectedTypeId != null) {
           _selectedPlantType = types.where((t) => t.id == widget.preselectedTypeId).firstOrNull;
         }
+        
         _selectedPlantType ??= types.isNotEmpty ? types.first : null;
-        // Pre-fill name when arriving from recommendation
+        
         if (!_isEditing && _nameCtrl.text.isEmpty && _selectedPlantType != null) {
           _nameCtrl.text = _selectedPlantType!.name;
         }
       });
-    } catch (_) {
-      if (mounted) setState(() => _typesLoading = false);
+    } catch (e) {
+      print("DEBUG: Error saat memuat jenis tanaman: $e");
+      if (mounted) {
+        setState(() => _typesLoading = false);
+        // Opsional: tampilkan snackbar jika gagal total
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal memuat daftar tanaman.')),
+        );
+      }
     }
   }
 
@@ -102,144 +120,151 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
       ),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            _typesLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _EmojiSelector(
-                    plantTypes: _plantTypes,
-                    selected: _selectedPlantType,
-                    onSelect: (t) => setState(() {
-                      _selectedPlantType = t;
-                      if (_nameCtrl.text.isEmpty) _nameCtrl.text = t.name;
-                    }),
-                  ),
-            if (_selectedPlantType != null) ...[
-              const SizedBox(height: 10),
-              _TolerancePreview(plantType: _selectedPlantType!),
-            ],
-            const SizedBox(height: 20),
-            _FormCard(
-              title: 'Informasi Dasar',
-              children: [
-                _InputLabel(label: 'Nama Tanaman'),
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Contoh: Selada Hidroponik A',
-                  ),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Nama wajib diisi' : null,
-                ),
-                const SizedBox(height: 14),
-                _InputLabel(label: 'Lokasi'),
-                TextFormField(
-                  controller: _locationCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Contoh: Balkon Lantai 2',
-                    prefixIcon: Icon(
-                      Icons.location_on_rounded,
-                      color: AppColors.textHint,
-                      size: 18,
-                    ),
-                  ),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Lokasi wajib diisi' : null,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _FormCard(
-              title: 'Metode Tanam',
-              children: [
-                ...GrowingMethod.values.map(
-                  (method) => _MethodRadioTile(
-                    method: method,
-                    isSelected: _selectedMethod == method,
-                    onSelect: () => setState(() => _selectedMethod = method),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _FormCard(
-              title: 'Tanggal Tanam',
-              children: [
-                GestureDetector(
-                  onTap: _pickDate,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFDDE8E0)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today_rounded,
-                          color: AppColors.primary,
-                          size: 18,
+        child: LayoutBuilder( // Menambahkan LayoutBuilder untuk presisi
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  _typesLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _EmojiSelector(
+                          plantTypes: _plantTypes,
+                          selected: _selectedPlantType,
+                          onSelect: (t) => setState(() {
+                            _selectedPlantType = t;
+                            if (_nameCtrl.text.isEmpty) _nameCtrl.text = t.name;
+                          }),
                         ),
-                        const SizedBox(width: 10),
-                        Text(
-                          '${_plantedDate.day}/${_plantedDate.month}/${_plantedDate.year}',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: AppColors.textPrimary,
+                  if (_selectedPlantType != null) ...[
+                    const SizedBox(height: 10),
+                    _TolerancePreview(plantType: _selectedPlantType!),
+                  ],
+                  const SizedBox(height: 20),
+                  _FormCard(
+                    title: 'Informasi Dasar',
+                    children: [
+                      _InputLabel(label: 'Nama Tanaman'),
+                      TextFormField(
+                        controller: _nameCtrl,
+                        decoration: const InputDecoration(
+                          hintText: 'Contoh: Selada Hidroponik A',
+                        ),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+                      ),
+                      const SizedBox(height: 14),
+                      _InputLabel(label: 'Lokasi'),
+                      TextFormField(
+                        controller: _locationCtrl,
+                        decoration: const InputDecoration(
+                          hintText: 'Contoh: Balkon Lantai 2',
+                          prefixIcon: Icon(
+                            Icons.location_on_rounded,
+                            color: AppColors.textHint,
+                            size: 18,
                           ),
                         ),
-                        const Spacer(),
-                        const Icon(
-                          Icons.edit_calendar_rounded,
-                          color: AppColors.textHint,
-                          size: 16,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _FormCard(
-              title: 'Catatan (opsional)',
-              children: [
-                TextFormField(
-                  controller: _notesCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Catatan perawatan khusus, target panen, dll.',
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
-            ElevatedButton(
-              onPressed: _isSaving ? null : _save,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: _isSaving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      _isEditing ? 'Simpan Perubahan' : 'Tambah ke Kebunku',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Lokasi wajib diisi' : null,
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _FormCard(
+                    title: 'Metode Tanam',
+                    children: [
+                      ...GrowingMethod.values.map(
+                        (method) => _MethodRadioTile(
+                          method: method,
+                          isSelected: _selectedMethod == method,
+                          onSelect: () => setState(() => _selectedMethod = method),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _FormCard(
+                    title: 'Tanggal Tanam',
+                    children: [
+                      GestureDetector(
+                        onTap: _pickDate,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFDDE8E0)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_today_rounded,
+                                color: AppColors.primary,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                '${_plantedDate.day}/${_plantedDate.month}/${_plantedDate.year}',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const Spacer(),
+                              const Icon(
+                                Icons.edit_calendar_rounded,
+                                color: AppColors.textHint,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _FormCard(
+                    title: 'Catatan (opsional)',
+                    children: [
+                      TextFormField(
+                        controller: _notesCtrl,
+                        decoration: const InputDecoration(
+                          hintText: 'Catatan perawatan khusus, target panen, dll.',
+                        ),
+                        maxLines: 3,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(
+                              _isEditing
+                                  ? 'Simpan Perubahan'
+                                  : 'Tambah ke Kebunku',
+                            ),
                     ),
-            ),
-            const SizedBox(height: 32),
-          ],
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -298,13 +323,15 @@ class _AddEditPlantPageState extends State<AddEditPlantPage> {
 
       if (!mounted) return;
       Navigator.pop(context, savedPlant);
-    } catch (e) {
+    } catch (e, stackTrace) { // Tambahkan stackTrace
+      print("ERROR: $e");
+      print("STACKTRACE: $stackTrace"); // Ini akan menunjukkan baris mana yang error
+      
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal menyimpan tanaman: $e'),
+          content: Text('Error: $e'), // Tampilkan pesan error asli
           backgroundColor: AppColors.danger,
-          behavior: SnackBarBehavior.floating,
         ),
       );
     } finally {

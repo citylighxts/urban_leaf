@@ -3,7 +3,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/services/weather_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-// import '../../models/diagnosis_model.dart';
+import '../../models/diagnosis_model.dart';
 import '../../models/plant_model.dart';
 import '../../models/weather_model.dart';
 import '../../services/diagnosis_firestore_service.dart';
@@ -29,12 +29,17 @@ class _PlantDetailPageState extends State<PlantDetailPage>
   late PlantModel _plant;
   final _plantService = PlantFirestoreService();
   final _diagnosisService = DiagnosisFirestoreService();
+  late Stream<List<DiagnosisModel>> _diagnosisStream;
+
+  List<DiagnosisModel> _currentDiagnoses = [];
+
 
   @override
   void initState() {
     super.initState();
     _plant = widget.plant;
     _tabController = TabController(length: 3, vsync: this);
+    _diagnosisStream = _diagnosisService.watchDiagnosesByPlant(_plant.id);
   }
 
   @override
@@ -50,23 +55,51 @@ class _PlantDetailPageState extends State<PlantDetailPage>
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           _buildSliverAppBar(),
-          SliverToBoxAdapter(child: _buildInfoCard()),
+          SliverToBoxAdapter(
+            child: StreamBuilder<List<DiagnosisModel>>(
+              stream: _diagnosisStream,
+              // stream: _diagnosisService.watchDiagnosesByPlant(_plant.id),
+              builder: (context, snapshot) {
+                final diagnoses = snapshot.data ?? [];
+                final effectiveStatus = diagnoses.isNotEmpty 
+                    ? _plant.getEffectiveStatus(diagnoses) 
+                    : _plant.status;
+                return _buildInfoCard(effectiveStatus);
+              }
+            ),
+          ),
           SliverPersistentHeader(
             pinned: true,
             delegate: _TabBarDelegate(tabController: _tabController),
           ),
         ],
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _InfoTab(plant: _plant),
-            CareHistoryTab(plant: _plant),
-            DiagnosisStreamTab(
-              stream: _diagnosisService.watchDiagnosesByPlant(_plant.id),
-              diagnosisService: _diagnosisService,
-              plant: _plant,
-            ),
-          ],
+
+        body: StreamBuilder<List<DiagnosisModel>>(
+          stream: _diagnosisStream,
+          builder: (context, snapshot) {
+            // Ambil data langsung, tidak perlu simpan ke variabel state kelas
+            final diagnoses = snapshot.data ?? [];
+
+            // Gunakan list ini untuk menentukan status yang akan dikirim ke UI
+            final effectiveStatus = diagnoses.isNotEmpty 
+                ? _plant.getEffectiveStatus(diagnoses) 
+                : _plant.status;
+
+            // Masalah utama kedip-kedip adalah build ulang yang terlalu agresif.
+            // Pastikan kita hanya me-return TabBarView saja.
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                _InfoTab(plant: _plant),
+                CareHistoryTab(plant: _plant),
+                DiagnosisStreamTab(
+                  diagnoses: diagnoses,
+                  diagnosisService: _diagnosisService,
+                  plant: _plant,
+                ),
+              ],
+            );
+          },
         ),
       ),
       bottomNavigationBar: _BottomActionBar(
@@ -118,31 +151,38 @@ class _PlantDetailPageState extends State<PlantDetailPage>
       pinned: true,
       backgroundColor: AppColors.primaryDark,
       flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: const BoxDecoration(gradient: AppColors.weatherGradient),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 40),
-              Text(_plant.emoji, style: const TextStyle(fontSize: 72)),
-              const SizedBox(height: 8),
-              Text(
-                _plant.name,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
+      background: Container(
+        decoration: const BoxDecoration(gradient: AppColors.weatherGradient),
+        // Gunakan Center agar konten punya ruang
+        child: Center( 
+          child: SingleChildScrollView( // Tambahkan ini agar tidak overflow
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 50), // Beri jarak lebih banyak dari top
+                Text(_plant.emoji, style: const TextStyle(fontSize: 72)),
+                const SizedBox(height: 8),
+                Text(
+                  _plant.name,
+                  textAlign: TextAlign.center, // Tambahkan text align
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _plant.type,
-                style: const TextStyle(fontSize: 14, color: Colors.white70),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  _plant.type,
+                  style: const TextStyle(fontSize: 14, color: Colors.white70),
+                ),
+                const SizedBox(height: 20), // Beri jarak bawah
+              ],
+            ),
           ),
         ),
       ),
+    ),
       actions: [
         IconButton(
           icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
@@ -152,7 +192,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildInfoCard(PlantStatus currentStatus) {
     return Container(
       margin: const EdgeInsets.all(20),
       padding: const EdgeInsets.all(16),
@@ -196,9 +236,9 @@ class _PlantDetailPageState extends State<PlantDetailPage>
           _Divider(),
           Column(
             children: [
-              PlantStatusChip(status: _plant.status),
-              const SizedBox(height: 4),
-              const Text('Status', style: AppTextStyles.caption),
+            PlantStatusChip(status: currentStatus),
+            const SizedBox(height: 4),
+            const Text('Status', style: AppTextStyles.caption),
             ],
           ),
         ],
@@ -230,40 +270,6 @@ class _PlantDetailPageState extends State<PlantDetailPage>
       ),
       builder: (ctx) => _MoreOptionsSheet(
         plant: _plant,
-        onToggleQuarantine: () async {
-          final messenger = ScaffoldMessenger.of(context);
-          final isQuarantined = _plant.status == PlantStatus.quarantine;
-          final updatedPlant = isQuarantined
-              ? _plant.copyWith(
-                  status: _plant.previousStatus ?? PlantStatus.healthy,
-                  previousStatus: null,
-                )
-              : _plant.copyWith(
-                  previousStatus: _plant.status,
-                  status: PlantStatus.quarantine,
-                );
-
-          final savedPlant = await _plantService.updatePlant(updatedPlant);
-          if (!mounted) return;
-          setState(() => _plant = savedPlant);
-          Navigator.pop(ctx);
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(
-                isQuarantined
-                    ? 'Tanaman berhasil keluar dari karantina'
-                    : 'Tanaman ditandai karantina',
-              ),
-              backgroundColor: isQuarantined
-                  ? AppColors.success
-                  : AppColors.warning,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
-        },
         onShare: () async {
           final shareText = [
             'Tanaman: ${_plant.name}',
@@ -655,13 +661,13 @@ class _BottomActionBar extends StatelessWidget {
 
 class _MoreOptionsSheet extends StatelessWidget {
   final PlantModel plant;
-  final Future<void> Function() onToggleQuarantine;
+  // final Future<void> Function() onToggleQuarantine;
   final Future<void> Function() onShare;
   final Future<void> Function() onDelete;
 
   const _MoreOptionsSheet({
     required this.plant,
-    required this.onToggleQuarantine,
+    // required this.onToggleQuarantine,
     required this.onShare,
     required this.onDelete,
   });
@@ -682,18 +688,18 @@ class _MoreOptionsSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _OptionItem(
-            icon: plant.status == PlantStatus.quarantine
-                ? Icons.radio_button_checked_rounded
-                : Icons.coronavirus_rounded,
-            label: plant.status == PlantStatus.quarantine
-                ? 'Keluar dari Karantina'
-                : 'Tandai Karantina',
-            color: plant.status == PlantStatus.quarantine
-                ? AppColors.success
-                : AppColors.quarantine,
-            onTap: () async => onToggleQuarantine(),
-          ),
+          // _OptionItem(
+          //   icon: plant.status == PlantStatus.quarantine
+          //       ? Icons.radio_button_checked_rounded
+          //       : Icons.coronavirus_rounded,
+          //   label: plant.status == PlantStatus.quarantine
+          //       ? 'Keluar dari Karantina'
+          //       : 'Tandai Karantina',
+          //   color: plant.status == PlantStatus.quarantine
+          //       ? AppColors.success
+          //       : AppColors.quarantine,
+          //   onTap: () async => onToggleQuarantine(),
+          // ),
           _OptionItem(
             icon: Icons.share_rounded,
             label: 'Bagikan Tanaman',

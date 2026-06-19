@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 // enum DiseaseSeverity { mild, moderate, severe }
 enum DiagnosisStatus { active, recovering, resolved }
 
@@ -8,7 +10,6 @@ class DiagnosisModel {
   final String plantEmoji;
   final String diseaseName;
   final String diseaseNameEn;
-  // final DiseaseSeverity severity;
   final DiagnosisStatus diagnosisStatus;
   final double confidence;
   final String description;
@@ -26,7 +27,6 @@ class DiagnosisModel {
     required this.plantEmoji,
     required this.diseaseName,
     required this.diseaseNameEn,
-    // required this.severity,
     required this.diagnosisStatus,
     required this.confidence,
     required this.description,
@@ -37,17 +37,6 @@ class DiagnosisModel {
     this.imagePath,        
     this.isManual = false,
   });
-
-  // String get severityLabel {
-  //   switch (severity) {
-  //     case DiseaseSeverity.mild:
-  //       return 'Ringan';
-  //     case DiseaseSeverity.moderate:
-  //       return 'Sedang';
-  //     case DiseaseSeverity.severe:
-  //       return 'Parah';
-  //   }
-  // }
 
   String get statusLabel {
     switch (diagnosisStatus) {
@@ -70,7 +59,6 @@ class DiagnosisModel {
       plantEmoji: plantEmoji,
       diseaseName: diseaseName,
       diseaseNameEn: diseaseNameEn,
-      // severity: severity,
       diagnosisStatus: diagnosisStatus ?? this.diagnosisStatus,
       confidence: confidence,
       description: description,
@@ -78,7 +66,7 @@ class DiagnosisModel {
       preventionTips: preventionTips,
       diagnosedAt: diagnosedAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      imagePath: imagePath ?? this.imagePath, // Tambahkan ini
+      imagePath: imagePath ?? this.imagePath, 
       isManual: isManual,
     );
   }
@@ -89,37 +77,56 @@ class DiagnosisModel {
         'plantEmoji': plantEmoji,
         'diseaseName': diseaseName,
         'diseaseNameEn': diseaseNameEn,
-        // 'severity': severity.name,
         'diagnosisStatus': diagnosisStatus.name,
         'confidence': confidence,
         'description': description,
         'solutions': solutions,
         'preventionTips': preventionTips,
-        'diagnosedAt': diagnosedAt.toIso8601String(),
-        'updatedAt': updatedAt?.toIso8601String(),
-        'imagePath': imagePath,   
+        'diagnosedAt': Timestamp.fromDate(diagnosedAt),
+        'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
+        'imagePath': imagePath,
         'isManual': isManual,
       };
 
-  factory DiagnosisModel.fromMap(Map<String, dynamic> map, String id) => DiagnosisModel(
-        id: id,
-        plantId: map['plantId'] as String,
-        plantName: map['plantName'] as String,
-        plantEmoji: map['plantEmoji'] as String,
-        diseaseName: map['diseaseName'] as String,
-        diseaseNameEn: map['diseaseNameEn'] as String,
-        // severity: DiseaseSeverity.values.firstWhere((e) => e.name == map['severity']),
-        diagnosisStatus: DiagnosisStatus.values.firstWhere(
-            (e) => e.name == map['diagnosisStatus']),
-        confidence: (map['confidence'] as num).toDouble(),
-        description: map['description'] as String,
-        solutions: List<String>.from(map['solutions'] as List),
-        preventionTips: List<String>.from(map['preventionTips'] as List),
-        diagnosedAt: DateTime.parse(map['diagnosedAt'] as String),
-        updatedAt: map['updatedAt'] != null
-            ? DateTime.parse(map['updatedAt'] as String)
-            : null,
-        imagePath: map['imagePath'] as String?, // <--- Tambahkan ini
-        isManual: map['isManual'] as bool? ?? false, // <--- Tamba
+  factory DiagnosisModel.fromMap(Map<String, dynamic> map, String id) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+      return DateTime.now();
+    }
+
+    List<String> parseStringList(dynamic value) {
+      if (value is List) {
+        return value.whereType().map((e) => e.toString()).toList();
+      }
+      return const [];
+    }
+
+    DiagnosisStatus parseStatus(dynamic value) {
+      final raw = value?.toString();
+      return DiagnosisStatus.values.firstWhere(
+        (e) => e.name == raw,
+        orElse: () => DiagnosisStatus.active,
       );
+    }
+
+    return DiagnosisModel(
+      id: id,
+      plantId: map['plantId']?.toString() ?? '',
+      plantName: map['plantName']?.toString() ?? '',
+      plantEmoji: map['plantEmoji']?.toString() ?? '🌱',
+      diseaseName: map['diseaseName']?.toString() ?? '',
+      diseaseNameEn: map['diseaseNameEn']?.toString() ?? '',
+      diagnosisStatus: parseStatus(map['diagnosisStatus']),
+      confidence: (map['confidence'] as num?)?.toDouble() ?? 0.0,
+      description: map['description']?.toString() ?? '',
+      solutions: parseStringList(map['solutions']),
+      preventionTips: parseStringList(map['preventionTips']),
+      diagnosedAt: parseDate(map['diagnosedAt']),
+      updatedAt: map['updatedAt'] == null ? null : parseDate(map['updatedAt']),
+      imagePath: map['imagePath']?.toString(),
+      isManual: map['isManual'] is bool ? map['isManual'] as bool : false,
+    );
+  }
 }

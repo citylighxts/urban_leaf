@@ -275,21 +275,10 @@ class _ArticlesTabState extends State<_ArticlesTab> {
         if (snapshot.hasError) {
           return Center(
             child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('⚠️', style: TextStyle(fontSize: 40)),
-                  const SizedBox(height: 12),
-                  const Text('Gagal memuat artikel',
-                      style: AppTextStyles.headingSmall),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () =>
-                        setState(() => _future = _service.fetchAll()),
-                    child: const Text('Coba lagi'),
-                  ),
-                ],
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                snapshot.error.toString(),
+                textAlign: TextAlign.center,
               ),
             ),
           );

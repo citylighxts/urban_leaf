@@ -8,12 +8,12 @@ import '../../services/plant_firestore_service.dart';
 
 
 class ManualDiagnosisPage extends StatefulWidget {
-  final File imageFile;
+  final File? imageFile;
   final bool isEditMode;
-  final DiagnosisModel? diagnosisToEdit; 
+  final DiagnosisModel? diagnosisToEdit;
   const ManualDiagnosisPage({
-    super.key, 
-    required this.imageFile, 
+    super.key,
+    this.imageFile,
     this.isEditMode = false,
     this.diagnosisToEdit,
   });
@@ -41,38 +41,32 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
           ? widget.diagnosisToEdit!.solutions.first : '';
     }
   }
+  
   Future<void> _handleUpdate() async {
-    print("DEBUG: Diagnosis ID yang mau diupdate: '${widget.diagnosisToEdit?.id}'");
-    
-    if (widget.diagnosisToEdit == null || widget.diagnosisToEdit!.id.isEmpty) {
-      print("ERROR: ID Kosong atau null!");
-      return;
-    }
-    if (widget.diagnosisToEdit == null) return;
+    final diagnosis = widget.diagnosisToEdit;
+    if (diagnosis == null) return;
 
-    // Tampilkan loading kalau perlu, atau minimal beri indikasi
-    print("Data yang dikirim: ${_namaPenyakitController.text}");
-
-    final updatedDiagnosis = widget.diagnosisToEdit!.copyWith(
-      diseaseName: _namaPenyakitController.text,
-      description: _gejalaController.text,
-      solutions: [_solusiController.text],
+    final updatedDiagnosis = diagnosis.copyWith(
+      diseaseName: _namaPenyakitController.text.trim(),
+      description: _gejalaController.text.trim(),
+      solutions: _solusiController.text.trim().isEmpty
+          ? const []
+          : [_solusiController.text.trim()],
     );
 
     try {
-      await _diagnosisService.updateDiagnosis(updatedDiagnosis);
-      
-      // Pastikan widget masih ada di tree sebelum pop
-      if (mounted) {
-        Navigator.pop(context); // Ini akan menutup halaman edit
-      }
+      await _diagnosisService.updateDiagnosis(diagnosis.plantId, updatedDiagnosis);
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
     } catch (e) {
-      // Jika gagal, tampilkan error di layar
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal update: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal update diagnosis: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
   
@@ -80,48 +74,70 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF0F2018),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => StreamBuilder<List<PlantModel>>(
         stream: _plantService.watchPlants(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final livePlants = snapshot.data!;
-          
+
           return Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Pilih Tanaman', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Pilih Tanaman',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 Expanded(
                   child: ListView.builder(
                     itemCount: livePlants.length,
                     itemBuilder: (context, index) {
                       final plant = livePlants[index];
                       return ListTile(
-                        leading: Text(plant.emoji, style: const TextStyle(fontSize: 24)),
-                        title: Text(plant.name, style: const TextStyle(color: Colors.white)),
+                        leading: Text(
+                          plant.emoji,
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                        title: Text(
+                          plant.name,
+                          style: const TextStyle(color: Colors.white),
+                        ),
                         onTap: () async {
-                          // Simpan ke Firestore
+                          final plantId = plant.id;
                           final diagnosis = DiagnosisModel(
                             id: '',
                             plantId: plant.id,
                             plantName: plant.name,
                             plantEmoji: plant.emoji,
-                            diseaseName: _namaPenyakitController.text,
+                            diseaseName: _namaPenyakitController.text.trim(),
                             diseaseNameEn: 'Human Diagnose',
                             diagnosisStatus: DiagnosisStatus.active,
                             confidence: 0.0,
-                            description: _gejalaController.text,
-                            solutions: [_solusiController.text],
-                            preventionTips: [],
+                            description: _gejalaController.text.trim(),
+                            solutions: _solusiController.text.trim().isEmpty
+                                ? const []
+                                : [_solusiController.text.trim()],
+                            preventionTips: const [],
                             diagnosedAt: DateTime.now(),
-                            imagePath: widget.imageFile.path,
+                            imagePath: widget.imageFile?.path,
                             isManual: true,
                           );
-                          await _diagnosisService.addDiagnosis(diagnosis);
-                          Navigator.pop(ctx); // Tutup bottom sheet
-                          Navigator.pop(context); // Kembali ke Home
+
+                          await _diagnosisService.addDiagnosis(plantId, diagnosis);
+
+                          if (!mounted) return;
+                          if (context.mounted) Navigator.pop(ctx);
+                          if (context.mounted) Navigator.pop(context, true);
                         },
                       );
                     },
@@ -137,11 +153,9 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Warna-warna tema baru
-    const bgColor = Colors.white; // Background putih
-    const inputColor = Color(0xFF0A1A12); // Hijau tua untuk box input
-    const accentColor = Color(0xFF0A1A12); // Hijau tua untuk tombol
-    
+    const bgColor = Colors.white;
+    const inputColor = Color(0xFF0A1A12);
+
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
@@ -153,10 +167,31 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Image.file(widget.imageFile, height: 250, width: double.infinity, fit: BoxFit.cover),
-          ),
+          if (widget.imageFile != null && widget.imageFile!.existsSync())
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.file(
+                widget.imageFile!,
+                height: 250,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            )
+          else
+            Container(
+              height: 250,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F7F4),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Center(
+                child: Text(
+                  'Tidak ada gambar preview',
+                  style: TextStyle(color: Colors.black54),
+                ),
+              ),
+            ),
           const SizedBox(height: 24),
 
           // Fungsi builder untuk input agar konsisten
@@ -168,24 +203,12 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
           
           const SizedBox(height: 32),
 
-          // 1. Tombol Utama (Simpan)
-          // ElevatedButton(
-          //   onPressed: _showSaveDialog,
-          //   style: ElevatedButton.styleFrom(
-          //     backgroundColor: accentColor, 
-          //     padding: const EdgeInsets.symmetric(vertical: 16),
-          //     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          //   ),
-          //   child: const Text("Simpan ke Tanaman", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          // ),
-
           ElevatedButton(
             onPressed: () {
-              print("Tombol Update diklik!");
               if (widget.isEditMode) {
-                _handleUpdate(); // Jika sedang edit, update saja
+                _handleUpdate();
               } else {
-                _showSaveDialog(); // Jika baru, buka dialog pilih tanaman
+                _showSaveDialog();
               }
             },
             style: ElevatedButton.styleFrom(
@@ -203,7 +226,7 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
 
           // 3. Tombol Scan Lagi
           OutlinedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, true),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Color(0xFF0A1A12), width: 1.5),
               padding: const EdgeInsets.symmetric(vertical: 16), // Samakan tingginya dengan tombol atas
