@@ -104,36 +104,7 @@ class _PlantDetailPageState extends State<PlantDetailPage>
       ),
       bottomNavigationBar: _BottomActionBar(
         plant: _plant,
-        onWaterNow: () async {
-          final messenger = ScaffoldMessenger.of(context);
-          final now = DateTime.now();
-          final updatedPlant = _plant.copyWith(
-            status: _plant.status == PlantStatus.quarantine
-                ? PlantStatus.quarantine
-                : PlantStatus.healthy,
-            nextWatering: now.add(const Duration(hours: 24)),
-            lastWateredAt: now,
-            careHistory: [
-              'Disiram - ${_formatDateTime(now)}',
-              ..._plant.careHistory,
-            ],
-          );
-
-          final savedPlant = await _plantService.updatePlant(updatedPlant);
-
-          if (!mounted) return;
-          setState(() => _plant = savedPlant);
-          messenger.showSnackBar(
-            SnackBar(
-              content: const Text('✅ Tanaman berhasil disiram!'),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
-        },
+        onCareAction: _showCareSheet,
         onEdit: () async {
           final navigator = Navigator.of(context);
           final result = await navigator.push<PlantModel>(
@@ -251,6 +222,54 @@ class _PlantDetailPageState extends State<PlantDetailPage>
     if (diff.inHours < 1) return '< 1 jam';
     if (diff.inHours < 24) return '${diff.inHours}j lagi';
     return '${diff.inDays}h lagi';
+  }
+
+  void _showCareSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _CareActionSheet(
+        onCareSelected: (entry, isWatering) async {
+          Navigator.pop(ctx);
+          await _logCare(entry, isWatering: isWatering);
+        },
+      ),
+    );
+  }
+
+  Future<void> _logCare(String historyEntry, {bool isWatering = false}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final now = DateTime.now();
+    final updatedPlant = _plant.copyWith(
+      status: isWatering
+          ? (_plant.status == PlantStatus.quarantine
+              ? PlantStatus.quarantine
+              : PlantStatus.healthy)
+          : _plant.status,
+      nextWatering:
+          isWatering ? now.add(const Duration(hours: 24)) : _plant.nextWatering,
+      lastWateredAt: isWatering ? now : _plant.lastWateredAt,
+      careHistory: [
+        '$historyEntry - ${_formatDateTime(now)}',
+        ..._plant.careHistory,
+      ],
+    );
+
+    final savedPlant = await _plantService.updatePlant(updatedPlant);
+
+    if (!mounted) return;
+    setState(() => _plant = savedPlant);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('✅ $historyEntry berhasil dicatat!'),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   String _formatDateTime(DateTime dt) {
@@ -607,12 +626,12 @@ class _Divider extends StatelessWidget {
 
 class _BottomActionBar extends StatelessWidget {
   final PlantModel plant;
-  final Future<void> Function() onWaterNow;
+  final VoidCallback onCareAction;
   final Future<void> Function() onEdit;
 
   const _BottomActionBar({
     required this.plant,
-    required this.onWaterNow,
+    required this.onCareAction,
     required this.onEdit,
   });
 
@@ -648,9 +667,9 @@ class _BottomActionBar extends StatelessWidget {
           Expanded(
             flex: 2,
             child: ElevatedButton.icon(
-              onPressed: () async => onWaterNow(),
-              icon: const Icon(Icons.water_drop_rounded, size: 16),
-              label: const Text('Siram Sekarang'),
+              onPressed: onCareAction,
+              icon: const Icon(Icons.eco_rounded, size: 16),
+              label: const Text('Catat Perawatan'),
             ),
           ),
         ],
@@ -756,6 +775,118 @@ class _OptionItem extends StatelessWidget {
         ),
       ),
       onTap: onTap,
+    );
+  }
+}
+
+class _CareOption {
+  final String label;
+  final String historyEntry;
+  final IconData icon;
+  final Color color;
+  final bool isWatering;
+
+  const _CareOption(
+    this.label,
+    this.historyEntry,
+    this.icon,
+    this.color, {
+    this.isWatering = false,
+  });
+}
+
+class _CareActionSheet extends StatelessWidget {
+  final void Function(String entry, bool isWatering) onCareSelected;
+
+  const _CareActionSheet({required this.onCareSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    final options = [
+      const _CareOption('Penyiraman', 'Disiram', Icons.water_drop_rounded, Color(0xFF2196F3), isWatering: true),
+      const _CareOption('Pemupukan', 'Dipupuk', Icons.science_rounded, Color(0xFFFF9800)),
+      const _CareOption('Vitamin / Suplemen', 'Vitamin diberikan', Icons.spa_rounded, Color(0xFF9C27B0)),
+      const _CareOption('Pemangkasan', 'Dipangkas', Icons.content_cut_rounded, Color(0xFF009688)),
+      const _CareOption('Repotting', 'Repotting dilakukan', Icons.recycling_rounded, Color(0xFF795548)),
+    ];
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20, 20, 20, MediaQuery.of(context).padding.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textHint,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('Catat Perawatan', style: AppTextStyles.headingMedium),
+          const SizedBox(height: 4),
+          const Text(
+            'Pilih jenis perawatan yang dilakukan',
+            style: AppTextStyles.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          ...options.map(
+            (opt) => _CareOptionTile(
+              option: opt,
+              onTap: () => onCareSelected(opt.historyEntry, opt.isWatering),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CareOptionTile extends StatelessWidget {
+  final _CareOption option;
+  final VoidCallback onTap;
+
+  const _CareOptionTile({required this.option, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: option.color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: option.color.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: option.color.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(option.icon, size: 20, color: option.color),
+              ),
+              const SizedBox(width: 14),
+              Text(option.label, style: AppTextStyles.labelLarge),
+              const Spacer(),
+              Icon(Icons.chevron_right_rounded, color: option.color, size: 20),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

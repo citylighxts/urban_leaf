@@ -5,9 +5,27 @@ import '../../../models/plant_model.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
+IconData _iconForCare(String care) {
+  if (care.startsWith('Disiram')) return Icons.water_drop_rounded;
+  if (care.startsWith('Dipupuk')) return Icons.science_rounded;
+  if (care.startsWith('Vitamin')) return Icons.spa_rounded;
+  if (care.startsWith('Dipangkas')) return Icons.content_cut_rounded;
+  if (care.startsWith('Repotting')) return Icons.recycling_rounded;
+  return Icons.eco_rounded;
+}
+
+Color _colorForCare(String care) {
+  if (care.startsWith('Disiram')) return const Color(0xFF2196F3);
+  if (care.startsWith('Dipupuk')) return const Color(0xFFFF9800);
+  if (care.startsWith('Vitamin')) return const Color(0xFF9C27B0);
+  if (care.startsWith('Dipangkas')) return const Color(0xFF009688);
+  if (care.startsWith('Repotting')) return const Color(0xFF795548);
+  return AppColors.primary;
+}
+
 class CareHistoryTab extends StatelessWidget {
   final PlantModel plant;
-  
+
   const CareHistoryTab({super.key, required this.plant});
 
   @override
@@ -29,8 +47,8 @@ class CareHistoryTab extends StatelessWidget {
           label: care,
           isFirst: index == 0,
           isLast: index == plant.careHistory.length - 1,
-          color: AppColors.primary,
-          icon: Icons.eco_rounded,
+          color: _colorForCare(care),
+          icon: _iconForCare(care),
         );
       },
     );
