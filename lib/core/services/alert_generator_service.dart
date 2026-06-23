@@ -80,8 +80,8 @@ class AlertGeneratorService {
               p.type.toLowerCase().contains('cabai') ||
               p.status == PlantStatus.quarantine)
           .toList();
-      final candidatePlants = susceptiblePlants.isNotEmpty ? susceptiblePlants : outdoorPlants;
-      if (candidatePlants.isNotEmpty) {
+      if (susceptiblePlants.isNotEmpty) {
+        final candidatePlants = susceptiblePlants;
         final severity = weather.humidity >= 90
             ? AlertSeverity.critical
             : AlertSeverity.high;
