@@ -142,7 +142,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       const SizedBox(height: 8),
                       _StatsRow(
                         plantCount: plants.length,
-                        diagnosisCount: 0,
+                        // diagnosisCount: 0,
                         alertCount: attentionCount + quarantineCount,
                       ),
                       const SizedBox(height: 24),
@@ -451,12 +451,12 @@ class _EditField extends StatelessWidget {
 
 class _StatsRow extends StatelessWidget {
   final int plantCount;
-  final int diagnosisCount;
+  // final int diagnosisCount;
   final int alertCount;
 
   const _StatsRow({
     required this.plantCount,
-    required this.diagnosisCount,
+    // required this.diagnosisCount,
     required this.alertCount,
   });
 
@@ -466,8 +466,8 @@ class _StatsRow extends StatelessWidget {
       children: [
         _StatBox(value: '$plantCount', label: 'Tanaman'),
         const SizedBox(width: 12),
-        _StatBox(value: '$diagnosisCount', label: 'Diagnosis AI'),
-        const SizedBox(width: 12),
+        // _StatBox(value: '$diagnosisCount', label: 'Diagnosis AI'),
+        // const SizedBox(width: 12),
         _StatBox(value: '$alertCount', label: 'Butuh Perhatian'),
       ],
     );
