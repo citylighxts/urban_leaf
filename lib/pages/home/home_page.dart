@@ -11,6 +11,7 @@ import '../../models/alert_model.dart';
 import '../../models/plant_model.dart';
 import '../../models/weather_model.dart';
 import '../../services/alert_firestore_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/plant_firestore_service.dart';
 import '../../services/plant_type_service.dart';
 import '../../widgets/common/section_title.dart';
@@ -149,6 +150,9 @@ class _HomePageState extends State<HomePage> {
 
     // Hanya simpan alert baru ke Firestore. State _alerts dikendalikan stream.
     _alertService.saveAlerts(result.alerts).catchError((_) {});
+
+    // Kirim push notification untuk alert baru yang belum pernah dinotif.
+    NotificationService.instance.showNewAlerts(result.alerts).catchError((_) {});
 
     // Auto-flag healthy plants whose conditions exceed their tolerance.
     for (final id in result.plantIdsToFlag) {

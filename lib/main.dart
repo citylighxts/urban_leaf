@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
 import 'pages/auth/login_page.dart';
 import 'services/article_service.dart';
+import 'services/notification_service.dart';
 import 'services/plant_type_service.dart';
 
 void main() async {
@@ -22,6 +23,7 @@ void main() async {
     return true;
   };
 
+  await NotificationService.instance.init();
   PlantTypeService().seedIfEmpty().catchError((_) {});
   ArticleService().seedIfEmpty().catchError((_) {});
 
