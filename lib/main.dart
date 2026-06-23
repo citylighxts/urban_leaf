@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
-import 'pages/auth/login_page.dart';
+import 'pages/auth/splash_page.dart';
 import 'services/article_service.dart';
 import 'services/notification_service.dart';
 import 'services/plant_type_service.dart';
@@ -44,7 +44,7 @@ class UrbanLeafApp extends StatelessWidget {
       title: 'UrbanLeaf AI',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme, // Tetap menggunakan tema lightTheme bawaanmu
-      home: const LoginPage(), // 4. Ubah dari MainNavigation() ke LoginPage()
+      home: const SplashPage(),
     );
   }
 }

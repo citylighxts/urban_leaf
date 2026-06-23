@@ -108,7 +108,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('🌿', style: TextStyle(fontSize: 60), textAlign: TextAlign.center),
+                  Image.asset('assets/images/logo.png', width: 90, height: 90),
                   const SizedBox(height: 12),
                   const Text(
                     'Buat Akun Baru',

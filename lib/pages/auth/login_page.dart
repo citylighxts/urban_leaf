@@ -131,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('🍃', style: TextStyle(fontSize: 70), textAlign: TextAlign.center),
+                  Image.asset('assets/images/logo.png', width: 110, height: 110),
                   const SizedBox(height: 12),
                   const Text(
                     'Urban Leaf',

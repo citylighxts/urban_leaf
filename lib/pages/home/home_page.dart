@@ -381,17 +381,7 @@ class _HomePageState extends State<HomePage> {
       toolbarHeight: 60,
       title: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Center(
-              child: Text('🌿', style: TextStyle(fontSize: 18)),
-            ),
-          ),
+          Image.asset('assets/images/logo.png', width: 36, height: 36),
           const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
