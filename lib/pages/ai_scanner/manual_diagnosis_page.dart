@@ -110,8 +110,13 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
                         ),
                         title: Text(
                           plant.name,
-                          style: const TextStyle(color: Colors.white),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                         ),
+                        subtitle: Text(
+                          plant.type, // Asumsi ada field 'type' di model Plant kamu
+                          style: const TextStyle(color: Colors.white38, fontSize: 12),
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white54),
                         onTap: () async {
                           final plantId = plant.id;
                           final diagnosis = DiagnosisModel(
@@ -136,8 +141,17 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
                           await _diagnosisService.addDiagnosis(plantId, diagnosis, widget.imageFile);
 
                           if (!mounted) return;
-                          if (context.mounted) Navigator.pop(ctx);
-                          if (context.mounted) Navigator.pop(context, true);
+                          if (context.mounted) {
+                            Navigator.pop(ctx); 
+                            Navigator.pop(context, true); // Kembali ke halaman sebelumnya
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Berhasil menyimpan diagnosa manual!'),
+                                backgroundColor: Colors.green,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          } 
                         },
                       );
                     },
@@ -231,18 +245,20 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
           const SizedBox(height: 12),
 
           // 3. Tombol Scan Lagi
-          OutlinedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF0A1A12), width: 1.5),
-              padding: const EdgeInsets.symmetric(vertical: 16), // Samakan tingginya dengan tombol atas
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          if (!widget.isEditMode) ...[
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFF0A1A12), width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 16), // Samakan tingginya dengan tombol atas
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text(
+                "Scan Lagi", 
+                style: TextStyle(color: Color(0xFF0A1A12), fontWeight: FontWeight.bold)
+              ),
             ),
-            child: const Text(
-              "Scan Lagi", 
-              style: TextStyle(color: Color(0xFF0A1A12), fontWeight: FontWeight.bold)
-            ),
-          ),
+          ],
         ],
       ),
     );

@@ -45,7 +45,9 @@ class DiagnosisCard extends StatelessWidget {
               body: DiagnosisResult(
                 diagnosis: diagnosis,
                 onRescan: () => Navigator.pop(context),
-                firestoreService: PlantFirestoreService(), imageFile: null, 
+                firestoreService: PlantFirestoreService(), 
+                imageFile: null, 
+                showSaveButton: false,
               ),
             ),
           ),

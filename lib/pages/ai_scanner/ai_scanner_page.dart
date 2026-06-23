@@ -453,12 +453,14 @@ class DiagnosisResult extends StatelessWidget {
   final VoidCallback onRescan;
   final File? imageFile;
   final PlantFirestoreService firestoreService; // Menambahkan service di konstruktor
+  final bool showSaveButton;
   final DiagnosisFirestoreService _diagnosisService = DiagnosisFirestoreService();
   
   DiagnosisResult({
     required this.diagnosis,
     required this.onRescan, 
     required this.imageFile,
+    this.showSaveButton = true,
     required this.firestoreService
   });
 
@@ -548,13 +550,32 @@ class DiagnosisResult extends StatelessWidget {
           const SizedBox(height: 20),
           
           // TOMBOL SIMPAN RIIL KE FIRESTORE
-          _SaveToPlatButton(onTap: () => _showSaveDialog(context)),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: onRescan,
-            style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: const BorderSide(color: AppColors.primary), padding: const EdgeInsets.symmetric(vertical: 14)),
-            child: const Text('Scan Lagi'),
-          ),
+
+          // _SaveToPlatButton(onTap: () => _showSaveDialog(context)),
+          // const SizedBox(height: 12),
+          // OutlinedButton(
+          //   onPressed: onRescan,
+          //   style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: const BorderSide(color: AppColors.primary), padding: const EdgeInsets.symmetric(vertical: 14)),
+          //   child: const Text('Scan Lagi'),
+          // ),
+          if (showSaveButton) ...[
+            _SaveToPlatButton(onTap: () => _showSaveDialog(context)),
+            const SizedBox(height: 12),
+          ],
+
+          // PENGATURAN LOGIKA TOMBOL SCAN LAGI
+          if (showSaveButton) ...[
+            OutlinedButton(
+              onPressed: onRescan,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary, 
+                side: const BorderSide(color: AppColors.primary), 
+                padding: const EdgeInsets.symmetric(vertical: 14)
+              ),
+              child: const Text('Scan Lagi'),
+            ),
+            const SizedBox(height: 12),
+          ],
         ],
       ),
     );
