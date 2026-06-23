@@ -31,9 +31,6 @@ class _PlantDetailPageState extends State<PlantDetailPage>
   final _diagnosisService = DiagnosisFirestoreService();
   late Stream<List<DiagnosisModel>> _diagnosisStream;
 
-  List<DiagnosisModel> _currentDiagnoses = [];
-
-
   @override
   void initState() {
     super.initState();
@@ -84,18 +81,19 @@ class _PlantDetailPageState extends State<PlantDetailPage>
             final effectiveStatus = diagnoses.isNotEmpty 
                 ? _plant.getEffectiveStatus(diagnoses) 
                 : _plant.status;
+            final currentPlant = _plant.copyWith(status: effectiveStatus);
 
             // Masalah utama kedip-kedip adalah build ulang yang terlalu agresif.
             // Pastikan kita hanya me-return TabBarView saja.
             return TabBarView(
               controller: _tabController,
               children: [
-                _InfoTab(plant: _plant),
-                CareHistoryTab(plant: _plant),
+                _InfoTab(plant: currentPlant),
+                CareHistoryTab(plant: currentPlant),
                 DiagnosisStreamTab(
                   diagnoses: diagnoses,
                   diagnosisService: _diagnosisService,
-                  plant: _plant,
+                  plant: currentPlant,
                 ),
               ],
             );

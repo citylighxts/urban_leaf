@@ -74,5 +74,7 @@
 	<string>UrbanLeaf membutuhkan akses kamera untuk memindai penyakit tanaman secara langsung.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>UrbanLeaf membutuhkan akses galeri untuk mengunggah foto tanaman yang ingin didiagnosis.</string>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>UrbanLeaf akan mengirimkan peringatan cuaca dan kesehatan tanaman agar kebunmu selalu terjaga.</string>
 </dict>
 </plist>

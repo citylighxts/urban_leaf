@@ -13,7 +13,6 @@ import '../../models/weather_model.dart';
 import '../../services/alert_firestore_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/plant_firestore_service.dart';
-import '../../services/plant_type_service.dart';
 import '../../widgets/common/section_title.dart';
 import '../../widgets/home/alert_banner_card.dart';
 import '../../widgets/home/garden_status_row.dart';
