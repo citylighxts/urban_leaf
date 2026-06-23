@@ -3,11 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:urban_leaf/models/plant_model.dart';
 import 'package:urban_leaf/services/plant_firestore_service.dart';
 import '../models/diagnosis_model.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // Tambahkan ini
+import 'dart:io';
 
 class DiagnosisFirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final PlantFirestoreService _plantService = PlantFirestoreService();
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   CollectionReference<Map<String, dynamic>> _getDiagnosesCol(String plantId) {
     final uid = _auth.currentUser?.uid;
@@ -18,14 +21,49 @@ class DiagnosisFirestoreService {
         .collection('diagnoses');
   }
 
-  Future<void> addDiagnosis(String plantId, DiagnosisModel diagnosis) async {
+   Future<String?> _uploadImageToStorage(String plantId, File imageFile) async {
+    try {
+      // 1. Pastikan file ada
+      if (!await imageFile.exists()) {
+        print("Error: File lokal tidak ditemukan di path: ${imageFile.path}");
+        return null;
+      }
+
+      final userId = _auth.currentUser!.uid;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      
+      // 2. Buat referensi storage
+      final ref = _storage.ref().child('users/$userId/plants/$plantId/diagnoses/$fileName');
+      
+      // 3. Upload file
+      // putFile akan otomatis membuat folder jika belum ada di Firebase Storage
+      final taskSnapshot = await ref.putFile(imageFile);
+      
+      // 4. Ambil URL setelah upload selesai
+      return await taskSnapshot.ref.getDownloadURL();
+    } catch (e) {
+      print("Gagal upload gambar: $e");
+      return null;
+    }
+  }
+
+  Future<void> addDiagnosis(String plantId, DiagnosisModel diagnosis, File? imageFile) async {
+    print("DEBUG: Nilai imageFile saat ini adalah: $imageFile");
+    
+    String? imageUrl = diagnosis.imagePath;
+    // Jika ada file lokal, upload ke Cloud Storage
+    if (imageFile != null) {
+      imageUrl = await _uploadImageToStorage(plantId, imageFile);
+    }
+
     final userId = _auth.currentUser!.uid;
     final batch = _firestore.batch();
-
-    // Simpan ke path yang benar (di dalam plantId)
     final diagRef = _getDiagnosesCol(plantId).doc();
+
     final data = diagnosis.toMap();
     data['id'] = diagRef.id; 
+    data['imagePath'] = imageUrl;
+
     batch.set(diagRef, data);
     // Update status tanaman di koleksi 'plants'
     final plantRef = _firestore.collection('users').doc(userId)
@@ -147,4 +185,5 @@ class DiagnosisFirestoreService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
+
 }

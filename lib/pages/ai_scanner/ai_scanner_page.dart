@@ -28,8 +28,10 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
   DiagnosisModel? _result;
   File? _imageFile;
 
-  final AiScanService _aiScanService = AiScanService();  final PlantFirestoreService _firestoreService = PlantFirestoreService();
+  final AiScanService _aiScanService = AiScanService();  
+  final PlantFirestoreService _firestoreService = PlantFirestoreService();
   final ImagePicker _galleryPicker = ImagePicker();
+  
 
   @override
   void initState() {
@@ -261,8 +263,9 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
             _buildTopBar(context),
             Expanded(
               child: _scanState == _ScanState.result && _result != null
-                  ? _DiagnosisResult(
+                  ? DiagnosisResult(
                       diagnosis: _result!,
+                      imageFile: _imageFile!,
                       onRescan: _resetScan,
                       firestoreService: _firestoreService,
                     )
@@ -444,24 +447,23 @@ class _ScanInstructions extends StatelessWidget {
   }
 }
 
-// ... (Widget _ScanLineOverlay, _AnalyzingOverlay, _ScanBrackets, _Bracket, _BracketPainter, _ShutterButton, _ControlBtn, _ScanTipRow tetap dipertahankan sesuai kode aslimu)
 
-class _DiagnosisResult extends StatelessWidget {
+class DiagnosisResult extends StatelessWidget {
   final DiagnosisModel diagnosis;
   final VoidCallback onRescan;
+  final File? imageFile;
   final PlantFirestoreService firestoreService; // Menambahkan service di konstruktor
   final DiagnosisFirestoreService _diagnosisService = DiagnosisFirestoreService();
   
-  _DiagnosisResult({required this.diagnosis, required this.onRescan, required this.firestoreService});
+  DiagnosisResult({
+    required this.diagnosis,
+    required this.onRescan, 
+    required this.imageFile,
+    required this.firestoreService
+  });
 
   @override
   Widget build(BuildContext context) {
-    // final severityColor = switch (diagnosis.severity) {
-    //   DiseaseSeverity.mild => AppColors.success,
-    //   DiseaseSeverity.moderate => AppColors.warning,
-    //   DiseaseSeverity.severe => AppColors.danger,
-    // };
-
     return Container(
       decoration: const BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       child: ListView(
@@ -476,7 +478,32 @@ class _DiagnosisResult extends StatelessWidget {
             ),
             child: Column(
               children: [
-                const Text('🔬', style: TextStyle(fontSize: 40)),
+                // --- BAGIAN YANG DIUBAH ---
+                Container(
+                  height: 150,
+                  width: 150,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
+                  ),
+                  child: (diagnosis.imagePath != null && diagnosis.imagePath!.isNotEmpty)
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: diagnosis.imagePath!.startsWith('http') 
+                            ? Image.network( // Jika URL, gunakan Network
+                                diagnosis.imagePath!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+                              )
+                            : Image.file( // Jika bukan URL (lokal), gunakan File
+                                File(diagnosis.imagePath!),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+                              ),
+                      )
+                    : const Center(child: Icon(Icons.image_not_supported)),
+                ),
                 const SizedBox(height: 4),
                 Text(diagnosis.diseaseName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
                 const SizedBox(height: 12),
@@ -590,11 +617,13 @@ class _DiagnosisResult extends StatelessWidget {
                               description: diagnosis.description,
                               solutions: diagnosis.solutions,
                               preventionTips: diagnosis.preventionTips,
+                              imagePath: imageFile?.path,
                               diagnosedAt: DateTime.now(),
+                              isManual: false,
                             );
 
                             // 2. PANGGIL DENGAN DUA PARAMETER (plant.id dan newDiagnosis)
-                            await _diagnosisService.addDiagnosis(plant.id, newDiagnosis);
+                            await _diagnosisService.addDiagnosis(plant.id, newDiagnosis, imageFile,);
 
                             // 3. Proses UPDATE dokumen tanaman di Firestore
                             final updatedPlant = plant.copyWith(

@@ -133,7 +133,7 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
                             isManual: true,
                           );
 
-                          await _diagnosisService.addDiagnosis(plantId, diagnosis);
+                          await _diagnosisService.addDiagnosis(plantId, diagnosis, widget.imageFile);
 
                           if (!mounted) return;
                           if (context.mounted) Navigator.pop(ctx);
@@ -167,39 +167,45 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          if (widget.imageFile != null && widget.imageFile!.existsSync())
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.file(
-                widget.imageFile!,
+          Builder(builder: (context) {
+            // 1. Cek apakah ada file lokal (scan baru)
+            if (widget.imageFile != null && widget.imageFile!.existsSync()) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.file(widget.imageFile!, height: 250, width: double.infinity, fit: BoxFit.cover),
+              );
+            } 
+            // 2. Cek apakah ada URL dari Firebase (mode edit)
+            else if (widget.isEditMode && widget.diagnosisToEdit?.imagePath != null && widget.diagnosisToEdit!.imagePath!.startsWith('http')) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.network(
+                  widget.diagnosisToEdit!.imagePath!, 
+                  height: 250, 
+                  width: double.infinity, 
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Center(child: Text("Gagal memuat gambar")),
+                ),
+              );
+            } 
+            // 3. Jika tidak ada keduanya
+            else {
+              return Container(
                 height: 250,
                 width: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            )
-          else
-            Container(
-              height: 250,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F7F4),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Center(
-                child: Text(
-                  'Tidak ada gambar preview',
-                  style: TextStyle(color: Colors.black54),
-                ),
-              ),
-            ),
+                decoration: BoxDecoration(color: const Color(0xFFF3F7F4), borderRadius: BorderRadius.circular(20)),
+                child: const Center(child: Text('Tidak ada gambar preview')),
+              );
+            }
+          }),
           const SizedBox(height: 24),
 
           // Fungsi builder untuk input agar konsisten
           _buildInputField(controller: _namaPenyakitController, label: "Nama Penyakit", inputColor: inputColor),
           const SizedBox(height: 16),
-          _buildInputField(controller: _gejalaController, label: "Gejala Penyakit", inputColor: inputColor),
+          _buildInputField(controller: _gejalaController, label: "Deskripsi Penyakit", inputColor: inputColor),
           const SizedBox(height: 16),
-          _buildInputField(controller: _solusiController, label: "Rencana Perawatan", inputColor: inputColor, maxLines: 3),
+          _buildInputField(controller: _solusiController, label: "Langkah Penanganan", inputColor: inputColor, maxLines: 3),
           
           const SizedBox(height: 32),
 
