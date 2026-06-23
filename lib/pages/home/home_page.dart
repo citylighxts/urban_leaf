@@ -120,7 +120,10 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _onRefresh() => _loadWeather(forceRefresh: true);
+  Future<void> _onRefresh() async {
+    await NotificationService.instance.clearSeenAlerts();
+    await _loadWeather(forceRefresh: true);
+  }
 
   void _showLocationPicker() {
     showModalBottomSheet<void>(

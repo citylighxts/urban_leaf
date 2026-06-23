@@ -99,4 +99,9 @@ class NotificationService {
 
   Priority _priorityFor(AlertModel alert) =>
       alert.severity == AlertSeverity.critical ? Priority.high : Priority.defaultPriority;
+
+  Future<void> clearSeenAlerts() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_seenKey);
+  }
 }
