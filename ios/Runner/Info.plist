@@ -70,5 +70,9 @@
 	<string>UrbanLeaf membutuhkan lokasi untuk menampilkan data cuaca real-time di sekitarmu.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>UrbanLeaf membutuhkan lokasi untuk menampilkan data cuaca real-time di sekitarmu.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>UrbanLeaf membutuhkan akses kamera untuk memindai penyakit tanaman secara langsung.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>UrbanLeaf membutuhkan akses galeri untuk mengunggah foto tanaman yang ingin didiagnosis.</string>
 </dict>
 </plist>
