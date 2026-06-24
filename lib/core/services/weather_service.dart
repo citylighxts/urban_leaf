@@ -21,6 +21,8 @@ class WeatherService {
   static WeatherResult? _memCache;
   static DateTime? _memCacheTime;
 
+  static WeatherResult? get memCache => _memCache;
+
   /// Fetch current weather + 5-day forecast using device GPS.
   /// Returns in-memory result if still within TTL (avoids GPS on every call),
   /// then falls back to Firestore cache, then the live API.

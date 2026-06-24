@@ -32,6 +32,7 @@ class _EdukasiPageState extends State<EdukasiPage>
   WeatherModel? _weather;
   List<ForecastDayModel> _forecast = [];
   List<PlantModel> _plants = [];
+  bool _weatherError = false;
 
   @override
   void initState() {
@@ -58,7 +59,32 @@ class _EdukasiPageState extends State<EdukasiPage>
   }
 
   Future<void> _loadWeather() async {
+    if (mounted) setState(() => _weatherError = false);
     try {
+      // Pakai cache dulu kalau sudah ada dari home page
+      final cached = WeatherService.memCache;
+      if (cached != null) {
+        if (mounted) {
+          setState(() {
+            _weather = cached.current;
+            _forecast = cached.forecast;
+          });
+        }
+        return;
+      }
+      // Kalau belum ada cache, tunggu sebentar biar home selesai fetch
+      await Future.delayed(const Duration(seconds: 3));
+      final cachedAfterWait = WeatherService.memCache;
+      if (cachedAfterWait != null) {
+        if (mounted) {
+          setState(() {
+            _weather = cachedAfterWait.current;
+            _forecast = cachedAfterWait.forecast;
+          });
+        }
+        return;
+      }
+      // Kalau masih tidak ada, fetch sendiri
       final result = await WeatherService().fetchWeather();
       if (mounted) {
         setState(() {
@@ -66,7 +92,9 @@ class _EdukasiPageState extends State<EdukasiPage>
           _forecast = result.forecast;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) setState(() => _weatherError = true);
+    }
   }
 
   Future<void> _loadPlants() async {
@@ -104,6 +132,8 @@ class _EdukasiPageState extends State<EdukasiPage>
                     plantTypes: _plantTypes,
                     weather: _weather,
                     forecast: _forecast,
+                    weatherError: _weatherError,
+                    onRetryWeather: _loadWeather,
                   ),
             _plantTypesLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -782,11 +812,15 @@ class _RecommendedPlantsTab extends StatelessWidget {
   final List<PlantTypeModel> plantTypes;
   final WeatherModel? weather;
   final List<ForecastDayModel> forecast;
+  final bool weatherError;
+  final VoidCallback? onRetryWeather;
 
   const _RecommendedPlantsTab({
     required this.plantTypes,
     required this.forecast,
     this.weather,
+    this.weatherError = false,
+    this.onRetryWeather,
   });
 
   @override
@@ -820,7 +854,41 @@ class _RecommendedPlantsTab extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: [
         if (weather != null)
-          _WeatherContextCard(weather: weather!, forecast: forecast),
+          _WeatherContextCard(weather: weather!, forecast: forecast)
+        else if (weatherError)
+          GestureDetector(
+            onTap: onRetryWeather,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppColors.warningLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Text('📍', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Gagal mengambil data cuaca. Izin lokasi mungkin belum diberikan.',
+                      style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Coba lagi',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.warning,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         const SizedBox(height: 20),
         const SectionTitle(title: 'Cocok Ditanam Bulan Ini'),
         const SizedBox(height: 12),
@@ -829,9 +897,11 @@ class _RecommendedPlantsTab extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 32),
             child: Center(
               child: Text(
-                weather == null
-                    ? 'Memuat data cuaca...'
-                    : 'Tidak ada tanaman yang sesuai kondisi saat ini.',
+                weatherError
+                    ? 'Rekomendasi membutuhkan data cuaca.'
+                    : weather == null
+                        ? 'Memuat data cuaca...'
+                        : 'Tidak ada tanaman yang sesuai kondisi saat ini.',
                 style: AppTextStyles.bodySmall,
                 textAlign: TextAlign.center,
               ),
