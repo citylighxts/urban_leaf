@@ -29,8 +29,9 @@ class NotificationService {
   );
 
   Future<void> init() async {
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -38,27 +39,27 @@ class NotificationService {
     );
 
     await _plugin.initialize(
-      const InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      ),
+      const InitializationSettings(android: androidSettings, iOS: iosSettings),
     );
 
     if (Platform.isAndroid) {
       await _plugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.requestNotificationsPermission();
     }
 
     await _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(_androidChannel);
     await _plugin
-      .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(_wateringChannel);
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(_wateringChannel);
   }
 
   Future<void> showNewAlerts(List<AlertModel> alerts) async {
@@ -124,7 +125,9 @@ class NotificationService {
   }
 
   Priority _priorityFor(AlertModel alert) =>
-      alert.severity == AlertSeverity.critical ? Priority.high : Priority.defaultPriority;
+      alert.severity == AlertSeverity.critical
+      ? Priority.high
+      : Priority.defaultPriority;
 
   Future<void> clearSeenAlerts() async {
     final prefs = await SharedPreferences.getInstance();
@@ -201,9 +204,8 @@ class NotificationService {
       ),
     );
 
-    final updatedSeen = (seenSet
-          ..addAll(pendingPlants.map(_wateringReminderKey)))
-        .toList();
+    final updatedSeen =
+        (seenSet..addAll(pendingPlants.map(_wateringReminderKey))).toList();
     if (updatedSeen.length > 200) {
       updatedSeen.removeRange(0, updatedSeen.length - 200);
     }

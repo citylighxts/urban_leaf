@@ -19,7 +19,6 @@ import '../../widgets/home/garden_status_row.dart';
 import '../../widgets/home/weather_card.dart';
 import '../kebunku/plant_detail_page.dart';
 
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -78,7 +77,6 @@ class _HomePageState extends State<HomePage> {
     });
     _loadWeather();
   }
-
 
   @override
   void dispose() {
@@ -153,15 +151,17 @@ class _HomePageState extends State<HomePage> {
     _alertService.saveAlerts(result.alerts).catchError((_) {});
 
     // Kirim push notification untuk alert baru yang belum pernah dinotif.
-    NotificationService.instance.showNewAlerts(result.alerts).catchError((_) {});
+    NotificationService.instance
+        .showNewAlerts(result.alerts)
+        .catchError((_) {});
 
     // Auto-flag healthy plants whose conditions exceed their tolerance.
     for (final id in result.plantIdsToFlag) {
       final plant = plants.where((p) => p.id == id).firstOrNull;
       if (plant == null) continue;
-      _plantService.updatePlant(
-        plant.copyWith(status: PlantStatus.needsAttention),
-      ).catchError((_) => plant);
+      _plantService
+          .updatePlant(plant.copyWith(status: PlantStatus.needsAttention))
+          .catchError((_) => plant);
     }
   }
 
@@ -206,23 +206,21 @@ class _HomePageState extends State<HomePage> {
         final plants = snapshot.data ?? const <PlantModel>[];
 
         if (snapshot.hasData && plants.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) {
-              if (mounted) {
-                NotificationService.instance
-                    .showWateringReminders(plants)
-                    .catchError((_) {});
-              }
-            },
-          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              NotificationService.instance
+                  .showWateringReminders(plants)
+                  .catchError((_) {});
+            }
+          });
         }
 
         // Generate alert baru setiap kali weather di-fetch ulang.
         if (snapshot.hasData && _weather != null && !_alertsGenerated) {
           _alertsGenerated = true;
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) { if (mounted) _regenerateAlerts(plants); },
-          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _regenerateAlerts(plants);
+          });
         }
 
         final activeAlerts = _alerts
@@ -237,135 +235,132 @@ class _HomePageState extends State<HomePage> {
           body: RefreshIndicator(
             onRefresh: _onRefresh,
             child: CustomScrollView(
-            slivers: [
-              _buildAppBar(),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      // ── Location Picker ──
-                      _LocationPill(
-                        label: _selectedLocation?.name ?? 'Lokasi Saat Ini',
-                        isGps: _selectedLocation == null,
-                        onTap: _showLocationPicker,
-                      ),
-                      const SizedBox(height: 10),
-                      // ── Weather Card ──
-                      if (_weatherLoading)
-                        _WeatherLoading()
-                      else if (_weatherError != null)
-                        _WeatherError(
-                          message: _weatherError!,
-                          onRetry: _loadWeather,
-                        )
-                      else if (_weather != null)
-                        WeatherCard(
-                          weather: _weather!,
-                          forecast: _forecast,
+              slivers: [
+                _buildAppBar(),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        // ── Location Picker ──
+                        _LocationPill(
+                          label: _selectedLocation?.name ?? 'Lokasi Saat Ini',
+                          isGps: _selectedLocation == null,
+                          onTap: _showLocationPicker,
                         ),
-                      const SizedBox(height: 24),
-                      const SectionTitle(title: 'Status Kebunmu'),
-                      const SizedBox(height: 12),
-                      GardenStatusRow(
-                        healthyCount: plants
-                            .where((p) => p.status == PlantStatus.healthy)
-                            .length,
-                        needsAttentionCount: plants
-                            .where(
-                              (p) => p.status == PlantStatus.needsAttention,
-                            )
-                            .length,
-                        quarantineCount: plants
-                            .where((p) => p.status == PlantStatus.quarantine)
-                            .length,
-                      ),
-                      if (snapshot.hasError) ...[
+                        const SizedBox(height: 10),
+                        // ── Weather Card ──
+                        if (_weatherLoading)
+                          _WeatherLoading()
+                        else if (_weatherError != null)
+                          _WeatherError(
+                            message: _weatherError!,
+                            onRetry: _loadWeather,
+                          )
+                        else if (_weather != null)
+                          WeatherCard(weather: _weather!, forecast: _forecast),
                         const SizedBox(height: 24),
-                        const _InlineError(
-                          message: 'Gagal memuat tanaman dari Firestore',
+                        const SectionTitle(title: 'Status Kebunmu'),
+                        const SizedBox(height: 12),
+                        GardenStatusRow(
+                          healthyCount: plants
+                              .where((p) => p.status == PlantStatus.healthy)
+                              .length,
+                          needsAttentionCount: plants
+                              .where(
+                                (p) => p.status == PlantStatus.needsAttention,
+                              )
+                              .length,
+                          quarantineCount: plants
+                              .where((p) => p.status == PlantStatus.quarantine)
+                              .length,
                         ),
-                      ] else if (snapshot.connectionState ==
-                              ConnectionState.waiting &&
-                          plants.isEmpty) ...[
-                        const SizedBox(height: 24),
-                        const Center(child: CircularProgressIndicator()),
-                      ] else ...[
-                        if (activeAlerts.isNotEmpty) ...[
+                        if (snapshot.hasError) ...[
                           const SizedBox(height: 24),
-                          SectionTitle(
-                            title: 'Peringatan Aktif',
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _AlertCountBadge(count: activeAlerts.length),
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: _clearOldAlerts,
-                                  child: const Text(
-                                    'Bersihkan',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
+                          const _InlineError(
+                            message: 'Gagal memuat tanaman dari Firestore',
+                          ),
+                        ] else if (snapshot.connectionState ==
+                                ConnectionState.waiting &&
+                            plants.isEmpty) ...[
+                          const SizedBox(height: 24),
+                          const Center(child: CircularProgressIndicator()),
+                        ] else ...[
+                          if (activeAlerts.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            SectionTitle(
+                              title: 'Peringatan Aktif',
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _AlertCountBadge(count: activeAlerts.length),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: _clearOldAlerts,
+                                    child: const Text(
+                                      'Bersihkan',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ...activeAlerts.map(
-                            (alert) => Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: AlertBannerCard(
-                                alert: alert,
-                                onMarkHandled: () =>
-                                    _markAlertHandled(alert.id),
-                                onDismiss: () => _dismissAlert(alert.id),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                        if (urgentPlants.isNotEmpty) ...[
-                          const SizedBox(height: 24),
-                          const SectionTitle(title: 'Butuh Tindakan Segera'),
-                          const SizedBox(height: 12),
-                          ...urgentPlants
-                              .take(3)
-                              .map(
-                                (plant) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: _UrgentPlantCard(
-                                    plant: plant,
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            PlantDetailPage(plant: plant),
+                            const SizedBox(height: 12),
+                            ...activeAlerts.map(
+                              (alert) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: AlertBannerCard(
+                                  alert: alert,
+                                  onMarkHandled: () =>
+                                      _markAlertHandled(alert.id),
+                                  onDismiss: () => _dismissAlert(alert.id),
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (urgentPlants.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            const SectionTitle(title: 'Butuh Tindakan Segera'),
+                            const SizedBox(height: 12),
+                            ...urgentPlants
+                                .take(3)
+                                .map(
+                                  (plant) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: _UrgentPlantCard(
+                                      plant: plant,
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              PlantDetailPage(plant: plant),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
+                          ],
+                          if (urgentPlants.isEmpty) ...[
+                            const SizedBox(height: 24),
+                            const Padding(
+                              padding: EdgeInsets.only(top: 24),
+                              child: _InlineEmpty(
+                                message: 'Semua tanaman aman saat ini',
                               ),
-                        ],
-                        if (urgentPlants.isEmpty) ...[
-                          const SizedBox(height: 24),
-                          const Padding(
-                            padding: EdgeInsets.only(top: 24),
-                            child: _InlineEmpty(
-                              message: 'Semua tanaman aman saat ini',
                             ),
-                          ),
+                          ],
                         ],
+                        const SizedBox(height: 24),
                       ],
-                      const SizedBox(height: 24),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
             ),
           ),
         );
@@ -403,7 +398,6 @@ class _HomePageState extends State<HomePage> {
       actions: const [],
     );
   }
-
 }
 
 // ── Location Pill ─────────────────────────────────────────────────────────
@@ -412,8 +406,11 @@ class _LocationPill extends StatelessWidget {
   final String label;
   final bool isGps;
   final VoidCallback onTap;
-  const _LocationPill(
-      {required this.label, required this.isGps, required this.onTap});
+  const _LocationPill({
+    required this.label,
+    required this.isGps,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -444,8 +441,11 @@ class _LocationPill extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down_rounded,
-                size: 16, color: AppColors.textHint),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 16,
+              color: AppColors.textHint,
+            ),
           ],
         ),
       ),
@@ -458,8 +458,7 @@ class _LocationPill extends StatelessWidget {
 class _LocationPickerSheet extends StatelessWidget {
   final _LocationOption? selected;
   final ValueChanged<_LocationOption?> onSelect;
-  const _LocationPickerSheet(
-      {required this.selected, required this.onSelect});
+  const _LocationPickerSheet({required this.selected, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -527,17 +526,19 @@ class _LocationPickerSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                  ..._kCities.map((city) => _LocationTile(
-                        icon: Icons.location_on_rounded,
-                        name: city.name,
-                        subtitle:
-                            '${city.lat.toStringAsFixed(2)}°, ${city.lng.toStringAsFixed(2)}°',
-                        isSelected: selected?.name == city.name,
-                        onTap: () {
-                          Navigator.pop(context);
-                          onSelect(city);
-                        },
-                      )),
+                  ..._kCities.map(
+                    (city) => _LocationTile(
+                      icon: Icons.location_on_rounded,
+                      name: city.name,
+                      subtitle:
+                          '${city.lat.toStringAsFixed(2)}°, ${city.lng.toStringAsFixed(2)}°',
+                      isSelected: selected?.name == city.name,
+                      onTap: () {
+                        Navigator.pop(context);
+                        onSelect(city);
+                      },
+                    ),
+                  ),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -580,9 +581,11 @@ class _LocationTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon,
-                size: 20,
-                color: isSelected ? AppColors.primary : AppColors.textHint),
+            Icon(
+              icon,
+              size: 20,
+              color: isSelected ? AppColors.primary : AppColors.textHint,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -598,15 +601,22 @@ class _LocationTile extends StatelessWidget {
                           : AppColors.textPrimary,
                     ),
                   ),
-                  Text(subtitle,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textHint)),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textHint,
+                    ),
+                  ),
                 ],
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle_rounded,
-                  color: AppColors.primary, size: 18),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.primary,
+                size: 18,
+              ),
           ],
         ),
       ),
@@ -661,7 +671,11 @@ class _WeatherError extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.cloud_off_rounded, color: AppColors.danger, size: 28),
+          const Icon(
+            Icons.cloud_off_rounded,
+            color: AppColors.danger,
+            size: 28,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -677,18 +691,12 @@ class _WeatherError extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   message,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.danger,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: AppColors.danger),
                 ),
               ],
             ),
           ),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('Coba lagi'),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('Coba lagi')),
         ],
       ),
     );
@@ -762,7 +770,6 @@ class _AlertCountBadge extends StatelessWidget {
   }
 }
 
-
 class _UrgentPlantCard extends StatelessWidget {
   final PlantModel plant;
   final VoidCallback onTap;
@@ -822,4 +829,3 @@ class _UrgentPlantCard extends StatelessWidget {
     );
   }
 }
-

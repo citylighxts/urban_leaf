@@ -35,12 +35,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadProfile() async {
     final profile = await _profileService.fetchProfile();
-    if (mounted) setState(() { _profile = profile; _profileLoading = false; });
+    if (mounted)
+      setState(() {
+        _profile = profile;
+        _profileLoading = false;
+      });
   }
 
   Future<void> _loadNotificationPreferences() async {
     final weatherEnabled = await _notificationService.weatherAlertsEnabled();
-    final wateringEnabled = await _notificationService.wateringRemindersEnabled();
+    final wateringEnabled = await _notificationService
+        .wateringRemindersEnabled();
     if (!mounted) return;
     setState(() {
       _weatherNotificationsEnabled = weatherEnabled;
@@ -116,7 +121,8 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             const SizedBox(height: 8),
             Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.textHint,
                 borderRadius: BorderRadius.circular(2),
@@ -152,9 +158,15 @@ class _ProfilePageState extends State<ProfilePage> {
       stream: _plantService.watchPlants(),
       builder: (context, snapshot) {
         final plants = snapshot.data ?? const [];
-        final healthyCount      = plants.where((p) => p.status == PlantStatus.healthy).length;
-        final attentionCount    = plants.where((p) => p.status == PlantStatus.needsAttention).length;
-        final quarantineCount   = plants.where((p) => p.status == PlantStatus.quarantine).length;
+        final healthyCount = plants
+            .where((p) => p.status == PlantStatus.healthy)
+            .length;
+        final attentionCount = plants
+            .where((p) => p.status == PlantStatus.needsAttention)
+            .length;
+        final quarantineCount = plants
+            .where((p) => p.status == PlantStatus.quarantine)
+            .length;
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -189,14 +201,17 @@ class _ProfilePageState extends State<ProfilePage> {
                             label: 'Tanaman Sehat',
                             value: '$healthyCount tanaman',
                             color: AppColors.healthy,
-                            onTap: () => _goToKebunku(filter: PlantStatus.healthy),
+                            onTap: () =>
+                                _goToKebunku(filter: PlantStatus.healthy),
                           ),
                           _ProfileTile(
                             icon: Icons.warning_rounded,
                             label: 'Perlu Perhatian',
                             value: '$attentionCount tanaman',
                             color: AppColors.needsAttention,
-                            onTap: () => _goToKebunku(filter: PlantStatus.needsAttention),
+                            onTap: () => _goToKebunku(
+                              filter: PlantStatus.needsAttention,
+                            ),
                           ),
                           _ProfileTile(
                             icon: Icons.coronavirus_rounded,
@@ -204,7 +219,8 @@ class _ProfilePageState extends State<ProfilePage> {
                             value: '$quarantineCount tanaman',
                             color: AppColors.quarantine,
                             isLast: true,
-                            onTap: () => _goToKebunku(filter: PlantStatus.quarantine),
+                            onTap: () =>
+                                _goToKebunku(filter: PlantStatus.quarantine),
                           ),
                         ],
                       ),
@@ -253,9 +269,9 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildAppBar() {
-    final name     = _profile?.displayName ?? '';
-    final city     = _profile?.city ?? '';
-    final title    = _profile?.title ?? '';
+    final name = _profile?.displayName ?? '';
+    final city = _profile?.city ?? '';
+    final title = _profile?.title ?? '';
     final photoUrl = _profile?.photoUrl;
     final subtitle = [title, city].where((s) => s.isNotEmpty).join(' · ');
 
@@ -287,12 +303,19 @@ class _ProfilePageState extends State<ProfilePage> {
                             ? Image.network(
                                 photoUrl,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stack) => const Center(
-                                  child: Text('🌿', style: TextStyle(fontSize: 38)),
-                                ),
+                                errorBuilder: (context, error, stack) =>
+                                    const Center(
+                                      child: Text(
+                                        '🌿',
+                                        style: TextStyle(fontSize: 38),
+                                      ),
+                                    ),
                               )
                             : const Center(
-                                child: Text('🌿', style: TextStyle(fontSize: 38)),
+                                child: Text(
+                                  '🌿',
+                                  style: TextStyle(fontSize: 38),
+                                ),
                               ),
                       ),
                     ),
@@ -307,7 +330,11 @@ class _ProfilePageState extends State<ProfilePage> {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
-                        child: const Icon(Icons.camera_alt_rounded, size: 12, color: Colors.white),
+                        child: const Icon(
+                          Icons.camera_alt_rounded,
+                          size: 12,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],
@@ -316,8 +343,12 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 12),
               _profileLoading
                   ? const SizedBox(
-                      height: 20, width: 20,
-                      child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white54,
+                        strokeWidth: 2,
+                      ),
                     )
                   : Text(
                       name.isNotEmpty ? name : '-',
@@ -377,8 +408,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl  = TextEditingController(text: widget.initialName);
-    _cityCtrl  = TextEditingController(text: widget.initialCity);
+    _nameCtrl = TextEditingController(text: widget.initialName);
+    _cityCtrl = TextEditingController(text: widget.initialCity);
     _titleCtrl = TextEditingController(text: widget.initialTitle);
   }
 
@@ -405,7 +436,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        20, 20, 20,
+        20,
+        20,
+        20,
         MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       child: Column(
@@ -414,7 +447,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
         children: [
           Center(
             child: Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.textHint,
                 borderRadius: BorderRadius.circular(2),
@@ -428,7 +462,11 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
           const SizedBox(height: 12),
           _EditField(label: 'Kota', controller: _cityCtrl, hint: 'Jakarta'),
           const SizedBox(height: 12),
-          _EditField(label: 'Sebutan', controller: _titleCtrl, hint: 'Urban Farmer'),
+          _EditField(
+            label: 'Sebutan',
+            controller: _titleCtrl,
+            hint: 'Urban Farmer',
+          ),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
@@ -436,7 +474,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               onPressed: _saving ? null : _handleSave,
               child: _saving
                   ? const SizedBox(
-                      height: 18, width: 18,
+                      height: 18,
+                      width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Simpan'),
@@ -460,9 +499,14 @@ class _EditField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
         const SizedBox(height: 4),
         TextField(
           controller: controller,
@@ -525,7 +569,11 @@ class _StatBox extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            Text(label, style: AppTextStyles.caption, textAlign: TextAlign.center),
+            Text(
+              label,
+              style: AppTextStyles.caption,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -613,8 +661,11 @@ class _ProfileTile extends StatelessWidget {
             children: [
               Text(value, style: AppTextStyles.bodySmall),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded,
-                  size: 16, color: AppColors.textHint),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: AppColors.textHint,
+              ),
             ],
           ),
         ),
@@ -736,11 +787,23 @@ class _SdgBadgesCard extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _SdgBadge(number: '11', label: 'Sustainable Cities',        color: const Color(0xFFF89B24)),
+              _SdgBadge(
+                number: '11',
+                label: 'Sustainable Cities',
+                color: const Color(0xFFF89B24),
+              ),
               const SizedBox(width: 8),
-              _SdgBadge(number: '12', label: 'Responsible Production',    color: const Color(0xFFBF8B2E)),
+              _SdgBadge(
+                number: '12',
+                label: 'Responsible Production',
+                color: const Color(0xFFBF8B2E),
+              ),
               const SizedBox(width: 8),
-              _SdgBadge(number: '13', label: 'Climate Action',            color: const Color(0xFF3F7E44)),
+              _SdgBadge(
+                number: '13',
+                label: 'Climate Action',
+                color: const Color(0xFF3F7E44),
+              ),
             ],
           ),
         ],
@@ -754,7 +817,11 @@ class _SdgBadge extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _SdgBadge({required this.number, required this.label, required this.color});
+  const _SdgBadge({
+    required this.number,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
