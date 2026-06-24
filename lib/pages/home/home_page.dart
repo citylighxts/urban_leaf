@@ -205,6 +205,18 @@ class _HomePageState extends State<HomePage> {
       builder: (context, snapshot) {
         final plants = snapshot.data ?? const <PlantModel>[];
 
+        if (snapshot.hasData && plants.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) {
+              if (mounted) {
+                NotificationService.instance
+                    .showWateringReminders(plants)
+                    .catchError((_) {});
+              }
+            },
+          );
+        }
+
         // Generate alert baru setiap kali weather di-fetch ulang.
         if (snapshot.hasData && _weather != null && !_alertsGenerated) {
           _alertsGenerated = true;

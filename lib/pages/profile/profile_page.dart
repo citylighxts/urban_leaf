@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/plant_model.dart';
 import '../../pages/kebunku/kebunku_page.dart';
+import '../../services/notification_service.dart';
 import '../../services/plant_firestore_service.dart';
 import '../../services/user_profile_service.dart';
 
@@ -17,19 +18,45 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final _profileService = UserProfileService();
   final _plantService = PlantFirestoreService();
+  final _notificationService = NotificationService.instance;
 
   UserProfile? _profile;
   bool _profileLoading = true;
+  bool _weatherNotificationsEnabled = true;
+  bool _wateringNotificationsEnabled = true;
+  bool _notificationPrefsLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadNotificationPreferences();
   }
 
   Future<void> _loadProfile() async {
     final profile = await _profileService.fetchProfile();
     if (mounted) setState(() { _profile = profile; _profileLoading = false; });
+  }
+
+  Future<void> _loadNotificationPreferences() async {
+    final weatherEnabled = await _notificationService.weatherAlertsEnabled();
+    final wateringEnabled = await _notificationService.wateringRemindersEnabled();
+    if (!mounted) return;
+    setState(() {
+      _weatherNotificationsEnabled = weatherEnabled;
+      _wateringNotificationsEnabled = wateringEnabled;
+      _notificationPrefsLoading = false;
+    });
+  }
+
+  Future<void> _setWeatherNotificationsEnabled(bool enabled) async {
+    setState(() => _weatherNotificationsEnabled = enabled);
+    await _notificationService.setWeatherAlertsEnabled(enabled);
+  }
+
+  Future<void> _setWateringNotificationsEnabled(bool enabled) async {
+    setState(() => _wateringNotificationsEnabled = enabled);
+    await _notificationService.setWateringRemindersEnabled(enabled);
   }
 
   Future<void> _showEditSheet() async {
@@ -189,14 +216,18 @@ class _ProfilePageState extends State<ProfilePage> {
                           _ToggleTile(
                             icon: Icons.notifications_rounded,
                             label: 'Alert Cuaca',
-                            value: true,
+                            value: _weatherNotificationsEnabled,
                             color: AppColors.info,
+                            isLoading: _notificationPrefsLoading,
+                            onChanged: _setWeatherNotificationsEnabled,
                           ),
                           _ToggleTile(
                             icon: Icons.water_drop_rounded,
                             label: 'Pengingat Siram',
-                            value: true,
+                            value: _wateringNotificationsEnabled,
                             color: AppColors.info,
+                            isLoading: _notificationPrefsLoading,
+                            onChanged: _setWateringNotificationsEnabled,
                           ),
                         ],
                       ),
@@ -599,6 +630,8 @@ class _ToggleTile extends StatefulWidget {
   final bool value;
   final Color color;
   final bool isLast;
+  final bool isLoading;
+  final ValueChanged<bool>? onChanged;
 
   const _ToggleTile({
     required this.icon,
@@ -606,6 +639,8 @@ class _ToggleTile extends StatefulWidget {
     required this.value,
     required this.color,
     this.isLast = false,
+    this.isLoading = false,
+    this.onChanged,
   });
 
   @override
@@ -619,6 +654,14 @@ class _ToggleTileState extends State<_ToggleTile> {
   void initState() {
     super.initState();
     _enabled = widget.value;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ToggleTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value) {
+      _enabled = widget.value;
+    }
   }
 
   @override
@@ -636,12 +679,21 @@ class _ToggleTileState extends State<_ToggleTile> {
             child: Icon(widget.icon, color: widget.color, size: 18),
           ),
           title: Text(widget.label, style: AppTextStyles.labelLarge),
-          trailing: Switch(
-            value: _enabled,
-            onChanged: (v) => setState(() => _enabled = v),
-            activeThumbColor: AppColors.primary,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
+          trailing: widget.isLoading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Switch(
+                  value: _enabled,
+                  onChanged: (v) {
+                    setState(() => _enabled = v);
+                    widget.onChanged?.call(v);
+                  },
+                  activeThumbColor: AppColors.primary,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
         ),
         if (!widget.isLast) const Divider(height: 1, indent: 68),
       ],
