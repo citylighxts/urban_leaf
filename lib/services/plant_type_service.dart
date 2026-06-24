@@ -350,7 +350,7 @@ class PlantTypeService {
     PlantTypeModel(
       id: 'lainnya',
       name: 'Lainnya',
-      emoji: '🌸',
+      emoji: '',
       minTemp: 15,
       maxTemp: 35,
       minHumidity: 50,

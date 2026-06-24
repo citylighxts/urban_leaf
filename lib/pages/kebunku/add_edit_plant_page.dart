@@ -353,57 +353,148 @@ class _EmojiSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Pisahkan: tanaman biasa dan Lainnya (selalu taruh paling bawah)
+    final regular = plantTypes.where((t) => t.id != 'lainnya').toList();
+    final others = plantTypes.where((t) => t.id == 'lainnya').toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _InputLabel(label: 'Jenis Tanaman'),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: plantTypes.map((t) {
+        const SizedBox(height: 10),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 0.9,
+          ),
+          itemCount: regular.length,
+          itemBuilder: (_, i) => _PlantTypeCard(
+            plantType: regular[i],
+            isSelected: selected?.id == regular[i].id,
+            onTap: () => onSelect(regular[i]),
+          ),
+        ),
+        if (others.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          ...others.map((t) {
             final isSelected = selected?.id == t.id;
             return GestureDetector(
               onTap: () => onSelect(t),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: isSelected ? AppColors.accent : AppColors.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primary
-                        : const Color(0xFFE0ECE4),
+                    color: isSelected ? AppColors.primary : const Color(0xFFE0ECE4),
                     width: isSelected ? 2 : 1,
                   ),
                 ),
-                child: Column(
+                child: Row(
                   children: [
-                    Text(t.emoji, style: const TextStyle(fontSize: 24)),
-                    const SizedBox(height: 4),
+                    Icon(
+                      Icons.add_circle_outline_rounded,
+                      size: 18,
+                      color: isSelected ? AppColors.primary : AppColors.textHint,
+                    ),
+                    const SizedBox(width: 10),
                     Text(
                       t.name,
                       style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w400,
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected ? AppColors.primary : AppColors.textSecondary,
                       ),
                     ),
+                    const Spacer(),
+                    if (isSelected)
+                      const Icon(Icons.check_circle_rounded,
+                          size: 16, color: AppColors.primary),
                   ],
                 ),
               ),
             );
-          }).toList(),
-        ),
+          }),
+        ],
       ],
+    );
+  }
+}
+
+class _PlantTypeCard extends StatelessWidget {
+  final PlantTypeModel plantType;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _PlantTypeCard({
+    required this.plantType,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.accent : AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : const Color(0xFFE0ECE4),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(plantType.emoji, style: const TextStyle(fontSize: 26)),
+            const SizedBox(height: 5),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                plantType.name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  height: 1.2,
+                ),
+              ),
+            ),
+            if (isSelected) ...[
+              const SizedBox(height: 3),
+              Container(
+                width: 5,
+                height: 5,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

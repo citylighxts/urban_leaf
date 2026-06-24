@@ -37,6 +37,7 @@ class _EdukasiPageState extends State<EdukasiPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() => setState(() {}));
     _loadPlantTypes();
     _loadWeather();
     _loadPlants();
@@ -134,15 +135,11 @@ class _EdukasiPageState extends State<EdukasiPage>
         ],
       ),
       actions: [
-        IconButton(
-          icon:
-              const Icon(Icons.search_rounded, color: AppColors.textPrimary),
-          onPressed: () {
-            if (_tabController.index == 0) {
-              _articlesKey.currentState?.activateSearch();
-            }
-          },
-        ),
+        if (_tabController.index == 0)
+          IconButton(
+            icon: const Icon(Icons.search_rounded, color: AppColors.textPrimary),
+            onPressed: () => _articlesKey.currentState?.activateSearch(),
+          ),
       ],
       bottom: TabBar(
         controller: _tabController,
