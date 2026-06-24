@@ -53,7 +53,7 @@ class DiagnosisCard extends StatelessWidget {
           ),
         );
       },
-      child: Container( // <--- INI KONTEN KARTU KAMU
+      child: Container( 
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -137,7 +137,6 @@ class DiagnosisCard extends StatelessWidget {
                     tooltip: 'Edit diagnosa',
                     onPressed: () {
                       // Navigasi ke halaman edit
-                      // Pastikan Anda sudah mengimport 'dart:io' untuk File
                       Navigator.push(
                         context,
                         MaterialPageRoute(

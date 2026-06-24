@@ -198,13 +198,6 @@ class _ProfilePageState extends State<ProfilePage> {
                             value: true,
                             color: AppColors.info,
                           ),
-                          _ToggleTile(
-                            icon: Icons.coronavirus_rounded,
-                            label: 'Alert Penyakit',
-                            value: true,
-                            color: AppColors.danger,
-                            isLast: true,
-                          ),
                         ],
                       ),
                       const SizedBox(height: 16),

@@ -73,7 +73,7 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
       available[0],
       ResolutionPreset.medium,
       enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.jpeg, // Tambahan: Kunci ke format JPEG murni agar Mali GPU tidak komplain chroma
+      imageFormatGroup: ImageFormatGroup.jpeg, 
     );
 
     try {
@@ -132,6 +132,7 @@ class _AiScannerPageState extends State<AiScannerPage> with TickerProviderStateM
     }
   }
 
+  //UI NYA
   @override
   void dispose() {
     _cameraController?.dispose();
@@ -549,15 +550,6 @@ class DiagnosisResult extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           
-          // TOMBOL SIMPAN RIIL KE FIRESTORE
-
-          // _SaveToPlatButton(onTap: () => _showSaveDialog(context)),
-          // const SizedBox(height: 12),
-          // OutlinedButton(
-          //   onPressed: onRescan,
-          //   style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: const BorderSide(color: AppColors.primary), padding: const EdgeInsets.symmetric(vertical: 14)),
-          //   child: const Text('Scan Lagi'),
-          // ),
           if (showSaveButton) ...[
             _SaveToPlatButton(onTap: () => _showSaveDialog(context)),
             const SizedBox(height: 12),

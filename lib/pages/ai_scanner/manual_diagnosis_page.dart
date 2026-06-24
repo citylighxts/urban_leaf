@@ -143,7 +143,7 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
                           if (!mounted) return;
                           if (context.mounted) {
                             Navigator.pop(ctx); 
-                            Navigator.pop(context, true); // Kembali ke halaman sebelumnya
+                            Navigator.pop(context, true); 
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Berhasil menyimpan diagnosa manual!'),
@@ -279,7 +279,7 @@ class _ManualDiagnosisPageState extends State<ManualDiagnosisPage> {
         labelText: label,
         labelStyle: TextStyle(color: inputColor.withOpacity(0.7)),
         filled: true,
-        fillColor: inputColor.withOpacity(0.05), // Sedikit warna hijau di box
+        fillColor: inputColor.withOpacity(0.05), 
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: inputColor), // Garis hijau tua
